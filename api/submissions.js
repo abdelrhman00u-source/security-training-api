@@ -10,12 +10,23 @@ export async function POST(request) {
         const body = await request.json();
 
         const {
+            username,
             groupName,
             notes,
             videoReference
         } = body;
 
-        if (!groupName) {
+        if (!username || username.trim() === "") {
+            return Response.json(
+                {
+                    success: false,
+                    message: "اسم المستخدم مطلوب"
+                },
+                { status: 400 }
+            );
+        }
+
+        if (!groupName || groupName.trim() === "") {
             return Response.json(
                 {
                     success: false,
@@ -28,20 +39,21 @@ export async function POST(request) {
         const { data, error } = await supabase
             .from("submissions")
             .insert({
-                group_name: groupName,
-                notes: notes || null,
-                video_reference: videoReference || null
+                username: username.trim(),
+                group_name: groupName.trim(),
+                notes: notes?.trim() || null,
+                video_reference: videoReference?.trim() || null
             })
             .select()
             .single();
 
         if (error) {
-            console.error(error);
+            console.error("Supabase Error:", error);
 
             return Response.json(
                 {
                     success: false,
-                    message: "حدث خطأ أثناء حفظ البيانات"
+                    message: "تعذر حفظ البيانات، حاول مرة أخرى"
                 },
                 { status: 500 }
             );
@@ -49,18 +61,19 @@ export async function POST(request) {
 
         return Response.json({
             success: true,
-            message: "تم حفظ البيانات بنجاح",
+            message: "تم إرسال البيانات بنجاح",
             data
         });
+
     } catch (error) {
-        console.error(error);
+        console.error("API Error:", error);
 
         return Response.json(
             {
                 success: false,
-                message: "بيانات غير صحيحة"
+                message: "تعذر الاتصال بالخادم"
             },
-            { status: 400 }
+            { status: 500 }
         );
     }
 }
