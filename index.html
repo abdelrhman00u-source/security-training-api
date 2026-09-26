@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة تحكم - تقريري</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Cairo', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+    <!-- Navbar -->
+    <nav class="bg-indigo-600 text-white shadow-md py-4 px-6 mb-8">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-2xl font-bold">لوحة تحكم تطبيق "تقريري"</h1>
+            <button onclick="fetchSubmissions()" class="bg-indigo-700 hover:bg-indigo-800 px-4 py-2 rounded-lg text-sm font-semibold transition">
+                تحديث البيانات 🔄
+            </button>
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <main class="container mx-auto px-4 pb-12">
+        
+        <!-- Loading State -->
+        <div id="loading" class="text-center py-12">
+            <div class="inline-block animate-spin rounded-full h-10 w-10 border-4 border-indigo-500 border-t-transparent"></div>
+            <p class="text-gray-500 mt-3">جاري تحميل البيانات من Supabase...</p>
+        </div>
+
+        <!-- Error State -->
+        <div id="error-box" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-relative mb-6 text-center"></div>
+
+        <!-- Data Grid -->
+        <div id="submissions-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- سيتم تعبئة البيانات هنا برمجياً -->
+        </div>
+
+    </main>
+
+    <!-- Supabase JS SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        // ضع بيانات مشروعك هنا من Supabase Settings -> API
+        const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+        const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        async function fetchSubmissions() {
+            const loadingEl = document.getElementById('loading');
+            const gridEl = document.getElementById('submissions-grid');
+            const errorEl = document.getElementById('error-box');
+
+            loadingEl.classList.remove('hidden');
+            gridEl.innerHTML = '';
+            errorEl.classList.add('hidden');
+
+            try {
+                const { data, error } = await supabase
+                    .from('submissions')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+
+                loadingEl.classList.add('hidden');
+
+                if (error) {
+                    throw error;
+                }
+
+                if (!data || data.length === 0) {
+                    gridEl.innerHTML = '<p class="col-span-full text-center text-gray-500 py-8">لا توجد بيانات مسجلة حتى الآن.</p>';
+                    return;
+                }
+
+                data.forEach(item => {
+                    const card = document.createElement('div');
+                    card.className = 'bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 flex flex-col justify-between';
+
+                    // تنسيق التاريخ
+                    const dateFormatted = new Date(item.created_at).toLocaleString('ar-EG');
+
+                    card.innerHTML = `
+                        <div class="p-5">
+                            <div class="flex justify-between items-start mb-3">
+                                <span class="bg-indigo-100 text-indigo-800 text-xs font-semibold px-2.5 py-1 rounded-full">${escapeHtml(item.group_name || 'بدون مجموعة')}</span>
+                                <span class="text-gray-400 text-xs">${dateFormatted}</span>
+                            </div>
+                            
+                            <h3 class="text-lg font-bold text-gray-800 mb-2">👤 ${escapeHtml(item.username || 'بدون اسم')}</h3>
+                            
+                            <p class="text-gray-600 text-sm mb-4 bg-gray-50 p-3 rounded-lg border border-gray-100 min-h-[60px]">
+                                <strong>الملاحظات:</strong><br>
+                                ${escapeHtml(item.notes || 'لا توجد ملاحظات')}
+                            </p>
+
+                            ${item.video_reference ? `
+                                <div class="mb-4 text-sm">
+                                    <strong class="text-gray-700">رابط الفيديو:</strong><br>
+                                    <a href="${escapeHtml(item.video_reference)}" target="_blank" class="text-indigo-600 hover:underline break-all">
+                                        ${escapeHtml(item.video_reference)}
+                                    </a>
+                                </div>
+                            ` : ''}
+                        </div>
+
+                        ${item.image_url ? `
+                            <div class="border-t border-gray-100 bg-gray-50 p-3 flex justify-center items-center">
+                                <img src="${item.image_url}" alt="صورة التقرير" class="h-40 object-contain rounded-lg shadow-sm border border-gray-200 cursor-pointer hover:opacity-95 transition" onclick="window.open('${item.image_url}')">
+                            </div>
+                        ` : `
+                            <div class="border-t border-gray-100 bg-gray-50 p-3 text-center text-xs text-gray-400">
+                                لا توجد صورة مرفقة
+                            </div>
+                        `}
+                    `;
+
+                    gridEl.appendChild(card);
+                });
+
+            } catch (err) {
+                loadingEl.classList.add('hidden');
+                errorEl.textContent = 'حدث خطأ أثناء جلب البيانات: ' + err.message;
+                errorEl.classList.remove('hidden');
+            }
+        }
+
+        // دالة أمان لمنع الثغرات (XSS)
+        function escapeHtml(str) {
+            return str
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        // جلب البيانات عند تحميل الصفحة
+        fetchSubmissions();
+    </script>
+</body>
+</html>
