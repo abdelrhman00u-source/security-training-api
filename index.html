@@ -118,7 +118,7 @@
                 return;
             }
 
-            // 🔥 تنظيف البيانات: إزالة أي ملفات أو مجلدات مكررة باستخدام اسم الملف
+            // تنظيف البيانات: إزالة أي ملفات أو مجلدات مكررة باستخدام اسم الملف
             const uniqueFiles = [];
             const seenNames = new Set();
             
@@ -135,8 +135,11 @@
                 const row = document.createElement('tr');
                 row.className = "hover:bg-slate-750 transition cursor-pointer";
                 
+                // استخدام المسار الصحيح سواء عند الضغط على الصف أو الزر
+                const targetPath = item.file_path; // المسار المجهز مسبقاً من الأندرويد
+
                 if (item.is_directory) {
-                    row.onclick = () => fetchDirectory(item.file_path);
+                    row.onclick = () => fetchDirectory(targetPath);
                 }
 
                 row.innerHTML = `
@@ -147,8 +150,8 @@
                     <td class="py-3 px-4 text-slate-400">${item.is_directory ? item.items_count + ' عناصر' : item.file_size}</td>
                     <td class="py-3 px-4 text-center" onclick="event.stopPropagation()">
                         ${item.is_directory ? 
-                            `<button onclick="fetchDirectory('${item.file_path}')" class="bg-amber-600 hover:bg-amber-500 text-white px-3 py-1 rounded text-xs transition">فتح 📂</button>` :
-                            `<button onclick="quickUpload('${item.file_path}')" class="bg-cyan-600 hover:bg-cyan-500 text-white px-3 py-1 rounded text-xs transition">رفع للسحابة ⬆️</button>`
+                            `<button onclick="fetchDirectory('${targetPath}')" class="bg-amber-600 hover:bg-amber-500 text-white px-3 py-1 rounded text-xs transition">فتح 📂</button>` :
+                            `<button onclick="quickUpload('${targetPath}')" class="bg-cyan-600 hover:bg-cyan-500 text-white px-3 py-1 rounded text-xs transition">رفع للسحابة ⬆️</button>`
                         }
                     </td>
                 `;
@@ -163,8 +166,8 @@
                 return;
             }
             
-            let path = currentPath.endsWith('/') ? currentPath.slice(0, -1) : currentPath;
-            const parts = path.split('/');
+            // تقسيم المسار وحذف آخر مجلد
+            let parts = currentPath.split('/');
             parts.pop(); 
             const parentPath = parts.join('/');
             
