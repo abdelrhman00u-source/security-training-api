@@ -3,152 +3,181 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>لوحة تحكم - تقريري</title>
-    <!-- Tailwind CSS CDN -->
+    <title>NAS Control Dashboard</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
-    <style>
-        body {
-            font-family: 'Cairo', sans-serif;
-        }
-    </style>
-</head>
-<body class="bg-gray-50 min-h-screen">
-
-    <!-- Navbar -->
-    <nav class="bg-indigo-600 text-white shadow-md py-4 px-6 mb-8">
-        <div class="container mx-auto flex justify-between items-center">
-            <h1 class="text-2xl font-bold">لوحة تحكم تطبيق "تقريري"</h1>
-            <button onclick="fetchSubmissions()" class="bg-indigo-700 hover:bg-indigo-800 px-4 py-2 rounded-lg text-sm font-semibold transition">
-                تحديث البيانات 🔄
-            </button>
-        </div>
-    </nav>
-
-    <!-- Main Container -->
-    <main class="container mx-auto px-4 pb-12">
-        
-        <!-- Loading State -->
-        <div id="loading" class="text-center py-12">
-            <div class="inline-block animate-spin rounded-full h-10 w-10 border-4 border-indigo-500 border-t-transparent"></div>
-            <p class="text-gray-500 mt-3">جاري تحميل البيانات من Supabase...</p>
-        </div>
-
-        <!-- Error State -->
-        <div id="error-box" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-relative mb-6 text-center"></div>
-
-        <!-- Data Grid -->
-        <div id="submissions-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <!-- سيتم تعبئة البيانات هنا برمجياً -->
-        </div>
-
-    </main>
-
     <!-- Supabase JS SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Tajawal', sans-serif; background-color: #0F172A; color: #F8FAFC; }
+    </style>
+</head>
+<body class="min-h-screen p-6">
+
+    <div class="max-w-5xl mx-auto">
+        <!-- Header -->
+        <header class="flex justify-between items-center mb-8 bg-slate-800 p-4 rounded-xl shadow-lg border border-slate-700">
+            <div>
+                <h1 class="text-2xl font-bold text-cyan-400">لوحة تحكم NAS الهاتف</h1>
+                <p class="text-sm text-slate-400">تصفح المجلدات، الرفع الذكي، والأوامر الفورية</p>
+            </div>
+            <button onclick="refreshData()" class="bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition shadow">
+                🔄 تحديث الملفات
+            </button>
+        </header>
+
+        <!-- Actions Panel -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <!-- Download Command Card -->
+            <div class="bg-slate-800 p-5 rounded-xl border border-slate-700 shadow-md">
+                <h2 class="text-lg font-semibold mb-3 text-emerald-400">📥 تحميل ملف إلى الهاتف</h2>
+                <input type="text" id="fileUrl" placeholder="رابط الملف المباشر (URL)" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 mb-3 text-sm focus:outline-none focus:border-emerald-500">
+                <input type="text" id="fileName" placeholder="اسم الملف مع الامتداد (مثل: video.mp4)" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 mb-3 text-sm focus:outline-none focus:border-emerald-500">
+                <button onclick="sendDownloadCommand()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-2.5 rounded-lg font-medium transition">
+                    إرسال أمر التحميل للهاتف
+                </button>
+            </div>
+
+            <!-- Smart Upload Card -->
+            <div class="bg-slate-800 p-5 rounded-xl border border-slate-700 shadow-md">
+                <h2 class="text-lg font-semibold mb-3 text-amber-400">⬆️ رفع ملف من الهاتف للسحابة</h2>
+                <input type="text" id="uploadFileName" placeholder="اسم الملف الموجود في الـ NAS" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 mb-3 text-sm focus:outline-none focus:border-amber-500">
+                <p class="text-xs text-slate-400 mb-3">ملاحظة: سيتم تخطي الملفات المرفوعة مسبقاً تلقائياً بدون رسائل مزعجة.</p>
+                <button onclick="sendUploadCommand()" class="w-full bg-amber-600 hover:bg-amber-500 text-white py-2.5 rounded-lg font-medium transition">
+                    بدء الرفع الذكي (Smart Upload)
+                </button>
+            </div>
+        </div>
+
+        <!-- File Explorer Section -->
+        <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-lg">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-semibold text-slate-200">📁 مستكشف الملفات (NAS Storage Explorer)</h2>
+                <span id="pathDisplay" class="text-xs bg-slate-900 px-3 py-1 rounded text-cyan-400 border border-slate-700">/Documents/NAS_Storage/</span>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full text-right border-collapse">
+                    <thead>
+                        <tr class="border-b border-slate-700 text-slate-400 text-sm">
+                            <th class="py-3 px-4">اسم الملف / المجلد</th>
+                            <th class="py-3 px-4">النوع</th>
+                            <th class="py-3 px-4">الحجم / العناصر</th>
+                            <th class="py-3 px-4 text-center">الإجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody id="fileTableBody" class="divide-y divide-slate-700 text-sm">
+                        <tr>
+                            <td colspan="4" class="text-center py-6 text-slate-500">جاري جلب الملفات... اضغط زر التحديث أو انتظر مزامنة الهاتف.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script Logic -->
     <script>
-        // ضع بيانات مشروعك هنا
-        const SUPABASE_URL = 'https://nrkovpnbjzopvifyomea.supabase.co';
-        const SUPABASE_ANON_KEY = 'sb_publishable_UH8BiQIRab4s4HiA7Gh20g_2B1AEMo9';
+        // إعدادات اتصال Supabase (نفس المفاتيح المستخدمة في التطبيق)
+        const SUPABASE_URL = "https://nrkovpnbjzopvifyomea.supabase.co";
+        const SUPABASE_KEY = "sb_publishable_UH8BiQIRab4s4HiA7Gh20g_2B1AEMo9";
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        // استخدام اسم مختلف لتجنب التعارض
-        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        // إرسال أمر لتنزيل ملف
+        async function sendDownloadCommand() {
+            const fileUrl = document.getElementById('fileUrl').value.trim();
+            const fileName = document.getElementById('fileName').value.trim();
 
-        async function fetchSubmissions() {
-            const loadingEl = document.getElementById('loading');
-            const gridEl = document.getElementById('submissions-grid');
-            const errorEl = document.getElementById('error-box');
+            if (!fileUrl || !fileName) {
+                alert("يرجى إدخال الرابط واسم الملف.");
+                return;
+            }
 
-            loadingEl.classList.remove('hidden');
-            gridEl.innerHTML = '';
-            errorEl.classList.add('hidden');
+            const { error } = await supabase.from('device_commands').insert([
+                { action: 'download', file_url: fileUrl, file_name: fileName }
+            ]);
 
-            try {
-                const { data, error } = await supabaseClient
-                    .from('submissions')
-                    .select('*')
-                    .order('created_at', { ascending: false });
-
-                loadingEl.classList.add('hidden');
-
-                if (error) {
-                    throw error;
-                }
-
-                if (!data || data.length === 0) {
-                    gridEl.innerHTML = '<p class="col-span-full text-center text-gray-500 py-8">لا توجد بيانات مسجلة حتى الآن.</p>';
-                    return;
-                }
-
-                data.forEach(item => {
-                    const card = document.createElement('div');
-                    card.className = 'bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 flex flex-col justify-between';
-
-                    const dateFormatted = new Date(item.created_at).toLocaleString('ar-EG');
-
-                    card.innerHTML = `
-                        <div class="p-5">
-                            <div class="flex justify-between items-start mb-3">
-                                <span class="bg-indigo-100 text-indigo-800 text-xs font-semibold px-2.5 py-1 rounded-full">${escapeHtml(item.group_name || 'بدون مجموعة')}</span>
-                                <span class="text-gray-400 text-xs">${dateFormatted}</span>
-                            </div>
-                            
-                            <h3 class="text-lg font-bold text-gray-800 mb-2">👤 ${escapeHtml(item.username || 'بدون اسم')}</h3>
-                            
-                            <p class="text-gray-600 text-sm mb-4 bg-gray-50 p-3 rounded-lg border border-gray-100 min-h-[60px]">
-                                <strong>الملاحظات:</strong><br>
-                                ${escapeHtml(item.notes || 'لا توجد ملاحظات')}
-                            </p>
-
-                            ${item.video_reference && item.video_reference.includes('cloudinary') ? `
-                                <div class="mb-4 text-sm">
-                                    <strong class="text-gray-700">مرفق فيديو:</strong><br>
-                                    <video controls class="w-full h-48 mt-2 rounded-lg border border-gray-200">
-                                        <source src="${escapeHtml(item.video_reference)}" type="video/mp4">
-                                        متصفحك لا يدعم تشغيل الفيديو.
-                                    </video>
-                                </div>
-                            ` : item.video_reference ? `
-                                <div class="mb-4 text-sm">
-                                    <strong class="text-gray-700">رابط الفيديو:</strong><br>
-                                    <a href="${escapeHtml(item.video_reference)}" target="_blank" class="text-indigo-600 hover:underline break-all">
-                                        ${escapeHtml(item.video_reference)}
-                                    </a>
-                                </div>
-                            ` : ''}
-                        </div>
-
-                        ${item.image_url ? `
-                            <div class="border-t border-gray-100 bg-gray-50 p-3 flex justify-center items-center">
-                                <img src="${item.image_url}" alt="صورة التقرير" class="h-40 object-contain rounded-lg shadow-sm border border-gray-200 cursor-pointer hover:opacity-95 transition" onclick="window.open('${item.image_url}')">
-                            </div>
-                        ` : `
-                            <div class="border-t border-gray-100 bg-gray-50 p-3 text-center text-xs text-gray-400">
-                                لا توجد صورة مرفقة
-                            </div>
-                        `}
-                    `;
-
-                    gridEl.appendChild(card);
-                });
-
-            } catch (err) {
-                loadingEl.classList.add('hidden');
-                errorEl.textContent = 'حدث خطأ أثناء جلب البيانات: ' + err.message;
-                errorEl.classList.remove('hidden');
+            if (error) {
+                alert("حدث خطأ أثناء إرسال الأمر: " + error.message);
+            } else {
+                alert("✅ تم إرسال أمر التحميل للهاتف بنجاح!");
+                document.getElementById('fileUrl').value = '';
+                document.getElementById('fileName').value = '';
             }
         }
 
-        function escapeHtml(str) {
-            return str
-                .replace(/&/g, "&amp;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;")
-                .replace(/"/g, "&quot;")
-                .replace(/'/g, "&#039;");
+        // إرسال أمر لرفع ملف من الهاتف للسحابة
+        async function sendUploadCommand() {
+            const fileName = document.getElementById('uploadFileName').value.trim();
+
+            if (!fileName) {
+                alert("يرجى إدخال اسم الملف.");
+                return;
+            }
+
+            const { error } = await supabase.from('device_commands').insert([
+                { action: 'upload', file_name: fileName }
+            ]);
+
+            if (error) {
+                alert("حدث خطأ أثناء إرسال الأمر: " + error.message);
+            } else {
+                alert("✅ تم إرسال أمر الرفع الذكي للهاتف بنجاح!");
+                document.getElementById('uploadFileName').value = '';
+            }
         }
 
-        fetchSubmissions();
+        // طلب تحديث المجلدات وتصفحها
+        async function refreshData() {
+            // إرسال أمر للهاتف لكي يزامن محتويات المجلد
+            await supabase.from('device_commands').insert([
+                { action: 'list_directory', file_path: '' }
+            ]);
+
+            // جلب البيانات المخزنة من جدول الكاش (Device Files Cache)
+            fetchFilesFromCache();
+        }
+
+        // جلب الملفات المعروضة في قاعدة البيانات
+        async function fetchFilesFromCache() {
+            const { data, error } = await supabase.from('device_files_cache').select('*');
+            const tbody = document.getElementById('fileTableBody');
+            
+            if (error || !data || data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" class="text-center py-6 text-slate-500">لا توجد ملفات مسجلة حالياً أو لم يتم الرد من الهاتف بعد.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = '';
+            data.forEach(item => {
+                const row = document.createElement('tr');
+                row.className = "hover:bg-slate-750 transition";
+                row.innerHTML = `
+                    <td class="py-3 px-4 font-medium text-slate-200">${item.file_name}</td>
+                    <td class="py-3 px-4">${item.is_directory ? '📁 مجلد' : '📄 ملف'}</td>
+                    <td class="py-3 px-4 text-slate-400">${item.is_directory ? item.items_count + ' عناصر' : (item.file_size || 'غير معروف')}</td>
+                    <td class="py-3 px-4 text-center">
+                        <button onclick="quickUpload('${item.file_name}')" class="bg-cyan-600 hover:bg-cyan-500 text-white px-3 py-1 rounded text-xs transition">رفع للسحابة</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // رفع سريع بضغط زر من الجدول
+        async function quickUpload(fileName) {
+            await supabase.from('device_commands').insert([
+                { action: 'upload', file_name: fileName }
+            ]);
+            alert(`تم طلب رفع الملف (${fileName}) للسحابة بصمت.`);
+        }
+
+        // جلب البيانات تلقائياً عند فتح الصفحة
+        window.onload = () => {
+            fetchFilesFromCache();
+        };
     </script>
 </body>
 </html>
