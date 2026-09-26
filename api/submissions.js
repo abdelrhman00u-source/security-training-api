@@ -9,13 +9,12 @@ export async function POST(request) {
     try {
         const body = await request.json();
 
-        // استخراج البيانات بنفس الأسماء التي يرسلها تطبيق الأندرويد بالضبط
+        // استخراج البيانات بالمسميات الجديدة المطابقة لتطبيق الأندرويد
         const {
             username,
-            groupName,
-            notes,
-            videoReference,
-            image_url // تم تعديل هذا المتغير ليطابق الأندرويد
+            video_reference,
+            link_status,
+            media_url
         } = body;
 
         if (!username || username.trim() === "") {
@@ -25,22 +24,14 @@ export async function POST(request) {
             );
         }
 
-        if (!groupName || groupName.trim() === "") {
-            return Response.json(
-                { success: false, message: "اسم المجموعة مطلوب" },
-                { status: 400 }
-            );
-        }
-
-        // إدخال البيانات إلى قاعدة بيانات Supabase
+        // إدخال البيانات إلى جدول submissions في Supabase
         const { data, error } = await supabase
             .from("submissions")
             .insert({
                 username: username.trim(),
-                group_name: groupName.trim(),
-                notes: notes?.trim() || null,
-                video_reference: videoReference?.trim() || null, // حفظ رابط الفيديو إن وُجد
-                image_url: image_url?.trim() || null             // حفظ رابط الصورة إن وُجدت
+                video_reference: video_reference?.trim() || null,
+                link_status: link_status || "يعمل",
+                media_url: media_url?.trim() || null
             })
             .select()
             .single();
@@ -55,7 +46,7 @@ export async function POST(request) {
 
         return Response.json({
             success: true,
-            message: "تم إرسال البيانات والميديا بنجاح",
+            message: "تم إرسال التقرير بنجاح",
             data
         });
 
