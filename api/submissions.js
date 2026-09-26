@@ -13,25 +13,20 @@ export async function POST(request) {
             username,
             groupName,
             notes,
-            videoReference
+            videoReference,
+            imageUrl // استلام رابط الصورة (أو Base64)
         } = body;
 
         if (!username || username.trim() === "") {
             return Response.json(
-                {
-                    success: false,
-                    message: "اسم المستخدم مطلوب"
-                },
+                { success: false, message: "اسم المستخدم مطلوب" },
                 { status: 400 }
             );
         }
 
         if (!groupName || groupName.trim() === "") {
             return Response.json(
-                {
-                    success: false,
-                    message: "اسم المجموعة مطلوب"
-                },
+                { success: false, message: "اسم المجموعة مطلوب" },
                 { status: 400 }
             );
         }
@@ -42,37 +37,30 @@ export async function POST(request) {
                 username: username.trim(),
                 group_name: groupName.trim(),
                 notes: notes?.trim() || null,
-                video_reference: videoReference?.trim() || null
+                video_reference: videoReference?.trim() || null,
+                image_url: imageUrl?.trim() || null // حفظ رابط الصورة أو البيانات
             })
             .select()
             .single();
 
         if (error) {
             console.error("Supabase Error:", error);
-
             return Response.json(
-                {
-                    success: false,
-                    message: "تعذر حفظ البيانات، حاول مرة أخرى"
-                },
+                { success: false, message: "تعذر حفظ البيانات، حاول مرة أخرى" },
                 { status: 500 }
             );
         }
 
         return Response.json({
             success: true,
-            message: "تم إرسال البيانات بنجاح",
+            message: "تم إرسال البيانات والصورة بنجاح",
             data
         });
 
     } catch (error) {
         console.error("API Error:", error);
-
         return Response.json(
-            {
-                success: false,
-                message: "تعذر الاتصال بالخادم"
-            },
+            { success: false, message: "تعذر الاتصال بالخادم" },
             { status: 500 }
         );
     }
