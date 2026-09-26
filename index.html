@@ -85,7 +85,9 @@
     <script>
         const SUPABASE_URL = "https://nrkovpnbjzopvifyomea.supabase.co";
         const SUPABASE_KEY = "sb_publishable_UH8BiQIRab4s4HiA7Gh20g_2B1AEMo9";
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        
+        // 🔥 تم تغيير اسم المتغير إلى supabaseClient لتفادي التعارض مع مكتبة window.supabase
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         let currentPath = ""; // المسار الحالي يبدأ فارغاً (المجلد الرئيسي)
 
@@ -95,7 +97,7 @@
             document.getElementById('pathDisplay').innerText = `/Documents/NAS_Storage/${path}`;
 
             // 1. إرسال أمر للهاتف بتحديث المجلد بناءً على المسار الجديد
-            await supabase.from('device_commands').insert([
+            await supabaseClient.from('device_commands').insert([
                 { action: 'list_directory', file_path: path }
             ]);
 
@@ -105,7 +107,7 @@
 
         // تحميل الملفات من جدول الكاش في Supabase وعرضها في الجدول
         async function loadFilesFromCache() {
-            const { data, error } = await supabase.from('device_files_cache').select('*');
+            const { data, error } = await supabaseClient.from('device_files_cache').select('*');
             const tbody = document.getElementById('fileTableBody');
             
             if (error || !data || data.length === 0) {
@@ -159,7 +161,7 @@
                 return;
             }
 
-            await supabase.from('device_commands').insert([
+            await supabaseClient.from('device_commands').insert([
                 { action: 'download', file_url: fileUrl, file_name: fileName, file_path: currentPath }
             ]);
             alert("✅ تم إرسال أمر التحميل للمسار الحالي بنجاح!");
@@ -173,14 +175,14 @@
                 return;
             }
 
-            await supabase.from('device_commands').insert([
+            await supabaseClient.from('device_commands').insert([
                 { action: 'upload', file_name: fileName, file_path: currentPath }
             ]);
             alert("✅ تم إرسال أمر الرفع الذكي.");
         }
 
         async function quickUpload(filePath) {
-            await supabase.from('device_commands').insert([
+            await supabaseClient.from('device_commands').insert([
                 { action: 'upload', file_name: filePath, file_path: currentPath }
             ]);
             alert(`تم طلب رفع الملف (${filePath}) للسحابة بصمت.`);
