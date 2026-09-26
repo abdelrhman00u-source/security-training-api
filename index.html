@@ -100,7 +100,15 @@
                                 ${escapeHtml(item.notes || 'لا توجد ملاحظات')}
                             </p>
 
-                            ${item.video_reference ? `
+                            ${item.video_reference && item.video_reference.includes('cloudinary') ? `
+                                <div class="mb-4 text-sm">
+                                    <strong class="text-gray-700">مرفق فيديو:</strong><br>
+                                    <video controls class="w-full h-48 mt-2 rounded-lg border border-gray-200">
+                                        <source src="${escapeHtml(item.video_reference)}" type="video/mp4">
+                                        متصفحك لا يدعم تشغيل الفيديو.
+                                    </video>
+                                </div>
+                            ` : item.video_reference ? `
                                 <div class="mb-4 text-sm">
                                     <strong class="text-gray-700">رابط الفيديو:</strong><br>
                                     <a href="${escapeHtml(item.video_reference)}" target="_blank" class="text-indigo-600 hover:underline break-all">
