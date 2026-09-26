@@ -9,12 +9,13 @@ export async function POST(request) {
     try {
         const body = await request.json();
 
+        // استخراج البيانات بنفس الأسماء التي يرسلها تطبيق الأندرويد بالضبط
         const {
             username,
             groupName,
             notes,
             videoReference,
-            imageUrl // استلام رابط الصورة (أو Base64)
+            image_url // تم تعديل هذا المتغير ليطابق الأندرويد
         } = body;
 
         if (!username || username.trim() === "") {
@@ -31,14 +32,15 @@ export async function POST(request) {
             );
         }
 
+        // إدخال البيانات إلى قاعدة بيانات Supabase
         const { data, error } = await supabase
             .from("submissions")
             .insert({
                 username: username.trim(),
                 group_name: groupName.trim(),
                 notes: notes?.trim() || null,
-                video_reference: videoReference?.trim() || null,
-                image_url: imageUrl?.trim() || null // حفظ رابط الصورة أو البيانات
+                video_reference: videoReference?.trim() || null, // حفظ رابط الفيديو إن وُجد
+                image_url: image_url?.trim() || null             // حفظ رابط الصورة إن وُجدت
             })
             .select()
             .single();
@@ -53,7 +55,7 @@ export async function POST(request) {
 
         return Response.json({
             success: true,
-            message: "تم إرسال البيانات والصورة بنجاح",
+            message: "تم إرسال البيانات والميديا بنجاح",
             data
         });
 
