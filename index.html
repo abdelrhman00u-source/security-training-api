@@ -60,6 +60,13 @@
                     <h2 class="text-lg font-semibold text-slate-200">📁 مستكشف الملفات</h2>
                 </div>
 
+                <!-- 🔥 أزرار الفلترة السريعة -->
+                <div class="flex items-center gap-2 bg-slate-900 p-1.5 rounded-lg border border-slate-700 text-xs">
+                    <button onclick="setFilter('all')" id="filter-all" class="px-3 py-1 rounded bg-cyan-600 text-white transition font-medium">الكل</button>
+                    <button onclick="setFilter('images')" id="filter-images" class="px-3 py-1 rounded text-slate-300 hover:bg-slate-800 transition">الصور 🖼️</button>
+                    <button onclick="setFilter('videos')" id="filter-videos" class="px-3 py-1 rounded text-slate-300 hover:bg-slate-800 transition">الفيديوهات 🎬</button>
+                </div>
+
                 <div class="flex flex-wrap items-center gap-3">
                     <button id="bulkUploadBtn" onclick="uploadSelected()" class="hidden bg-emerald-600 hover:bg-emerald-500 px-3 py-1.5 rounded text-xs text-white transition font-bold shadow-md">
                         ⬆️ رفع المحدد (0)
@@ -101,6 +108,8 @@
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         let currentPath = ""; 
+        let rawFilesData = []; // لحفظ النسخة الأصلية من البيانات للفلترة
+        let currentFilter = 'all'; // الفلتر الافتراضي
 
         async function fetchDirectory(path) {
             currentPath = path;
@@ -121,9 +130,9 @@
 
         async function loadFilesFromCache() {
             const { data, error } = await supabaseClient.from('device_files_cache').select('*');
-            const tbody = document.getElementById('fileTableBody');
             
             if (error || !data || data.length === 0) {
+                const tbody = document.getElementById('fileTableBody');
                 tbody.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-slate-500">المجلد فارغ، أو أن الهاتف لم يرد بعد.</td></tr>`;
                 return;
             }
@@ -138,13 +147,57 @@
                 }
             });
 
-            tbody.innerHTML = '';
-            
-            // ترتيب: المجلدات أولاً ثم الملفات
-            uniqueFiles.sort((a, b) => (b.is_directory === a.is_directory) ? 0 : b.is_directory ? 1 : -1);
+            // حفظ البيانات الأصلية
+            rawFilesData = uniqueFiles;
+            renderTable();
+        }
 
-            // تمرير الـ index لتوليد الأرقام التصاعدية (1, 2, 3...)
-            uniqueFiles.forEach((item, index) => {
+        // 🔥 دالة تغيير الفلتر وتحديث الألوان
+        function setFilter(filterType) {
+            currentFilter = filterType;
+            
+            // تحديث أشكال الأزرار
+            ['all', 'images', 'videos'].forEach(type => {
+                const btn = document.getElementById(`filter-${type}`);
+                if (type === filterType) {
+                    btn.className = "px-3 py-1 rounded bg-cyan-600 text-white transition font-medium";
+                } else {
+                    btn.className = "px-3 py-1 rounded text-slate-300 hover:bg-slate-800 transition";
+                }
+            });
+
+            renderTable();
+        }
+
+        // 🔥 دالة رسم الجدول وتطبيق الفلترة
+        function renderTable() {
+            const tbody = document.getElementById('fileTableBody');
+            tbody.innerHTML = '';
+
+            const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'];
+            const videoExts = ['mp4', 'avi', 'mkv', 'mov', 'webm'];
+
+            // تصفية البيانات بناءً على الفلتر المختار
+            const filteredFiles = rawFilesData.filter(item => {
+                if (item.is_directory) {
+                    // المجلدات تظهر دائماً في كل الفلاتر لتسهيل التصفح
+                    return true;
+                }
+                const ext = item.file_name.split('.').pop().toLowerCase();
+                if (currentFilter === 'images') return imageExts.includes(ext);
+                if (currentFilter === 'videos') return videoExts.includes(ext);
+                return true; // للكل
+            });
+
+            if (filteredFiles.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-slate-500">لا توجد ملفات تطابق هذا الفلتر في هذا المجلد.</td></tr>`;
+                return;
+            }
+
+            // ترتيب: المجلدات أولاً ثم الملفات
+            filteredFiles.sort((a, b) => (b.is_directory === a.is_directory) ? 0 : b.is_directory ? 1 : -1);
+
+            filteredFiles.forEach((item, index) => {
                 const row = document.createElement('tr');
                 row.className = "hover:bg-slate-750 transition cursor-pointer";
                 
@@ -211,7 +264,7 @@
             } else {
                 alert(`✅ تم طلب رفع ${checkboxes.length} ملف/ملفات بنجاح!`);
                 checkboxes.forEach(cb => cb.checked = false);
-                document.getElementById('selectAll').checked = false;
+                document.getElementById('selectAll').checked, false;
                 updateBulkUploadButton();
             }
         }
