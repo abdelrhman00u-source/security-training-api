@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NAS Control Dashboard</title>
+    <title>NAS Control Terminal & Dashboard</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Supabase JS SDK -->
@@ -20,11 +20,11 @@
         <!-- Header -->
         <header class="flex justify-between items-center mb-8 bg-slate-800 p-4 rounded-xl shadow-lg border border-slate-700">
             <div>
-                <h1 class="text-2xl font-bold text-cyan-400">لوحة تحكم NAS الهاتف</h1>
-                <p class="text-sm text-slate-400">تصفح المجلدات، الرفع الذكي، والأوامر الفورية</p>
+                <h1 class="text-2xl font-bold text-cyan-400">لوحة تحكم NAS (Terminal Mode)</h1>
+                <p class="text-sm text-slate-400">تصفح حر للمجلدات، الدخول والخروج، والتحكم بالملفات</p>
             </div>
-            <button onclick="refreshData()" class="bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition shadow">
-                🔄 تحديث الملفات
+            <button onclick="fetchDirectory(currentPath)" class="bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition shadow">
+                🔄 تحديث المجلد الحالي
             </button>
         </header>
 
@@ -32,7 +32,7 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             <!-- Download Command Card -->
             <div class="bg-slate-800 p-5 rounded-xl border border-slate-700 shadow-md">
-                <h2 class="text-lg font-semibold mb-3 text-emerald-400">📥 تحميل ملف إلى الهاتف</h2>
+                <h2 class="text-lg font-semibold mb-3 text-emerald-400">📥 تحميل ملف إلى المسار الحالي</h2>
                 <input type="text" id="fileUrl" placeholder="رابط الملف المباشر (URL)" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 mb-3 text-sm focus:outline-none focus:border-emerald-500">
                 <input type="text" id="fileName" placeholder="اسم الملف مع الامتداد (مثل: video.mp4)" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 mb-3 text-sm focus:outline-none focus:border-emerald-500">
                 <button onclick="sendDownloadCommand()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-2.5 rounded-lg font-medium transition">
@@ -42,20 +42,23 @@
 
             <!-- Smart Upload Card -->
             <div class="bg-slate-800 p-5 rounded-xl border border-slate-700 shadow-md">
-                <h2 class="text-lg font-semibold mb-3 text-amber-400">⬆️ رفع ملف من الهاتف للسحابة</h2>
-                <input type="text" id="uploadFileName" placeholder="اسم الملف الموجود في الـ NAS" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 mb-3 text-sm focus:outline-none focus:border-amber-500">
-                <p class="text-xs text-slate-400 mb-3">ملاحظة: سيتم تخطي الملفات المرفوعة مسبقاً تلقائياً بدون رسائل مزعجة.</p>
+                <h2 class="text-lg font-semibold mb-3 text-amber-400">⬆️ رفع ملف للسحابة من المسار</h2>
+                <input type="text" id="uploadFileName" placeholder="اسم الملف أو مساره النسبي" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 mb-3 text-sm focus:outline-none focus:border-amber-500">
+                <p class="text-xs text-slate-400 mb-3">ملاحظة: سيتم تخطي الملفات المرفوعة مسبقاً تلقائياً.</p>
                 <button onclick="sendUploadCommand()" class="w-full bg-amber-600 hover:bg-amber-500 text-white py-2.5 rounded-lg font-medium transition">
                     بدء الرفع الذكي (Smart Upload)
                 </button>
             </div>
         </div>
 
-        <!-- File Explorer Section -->
+        <!-- File Explorer Terminal Section -->
         <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-lg">
             <div class="flex justify-between items-center mb-4">
-                <h2 class="text-lg font-semibold text-slate-200">📁 مستكشف الملفات (NAS Storage Explorer)</h2>
-                <span id="pathDisplay" class="text-xs bg-slate-900 px-3 py-1 rounded text-cyan-400 border border-slate-700">/Documents/NAS_Storage/</span>
+                <div class="flex items-center gap-3">
+                    <button onclick="goBack()" class="bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded text-xs text-slate-200 transition">⬆️ رجوع للخلف (CD ..)</button>
+                    <h2 class="text-lg font-semibold text-slate-200">📁 مستكشف الملفات</h2>
+                </div>
+                <span id="pathDisplay" class="text-xs bg-slate-900 px-3 py-1 rounded text-cyan-400 border border-slate-700 font-mono">/Documents/NAS_Storage/</span>
             </div>
             
             <div class="overflow-x-auto">
@@ -70,7 +73,7 @@
                     </thead>
                     <tbody id="fileTableBody" class="divide-y divide-slate-700 text-sm">
                         <tr>
-                            <td colspan="4" class="text-center py-6 text-slate-500">جاري جلب الملفات... اضغط زر التحديث أو انتظر مزامنة الهاتف.</td>
+                            <td colspan="4" class="text-center py-6 text-slate-500">جاري تحميل مسارات الملفات...</td>
                         </tr>
                     </tbody>
                 </table>
@@ -78,14 +81,75 @@
         </div>
     </div>
 
-    <!-- Script Logic -->
+    <!-- Script Logic for Terminal Navigation -->
     <script>
-        // إعدادات اتصال Supabase (نفس المفاتيح المستخدمة في التطبيق)
         const SUPABASE_URL = "https://nrkovpnbjzopvifyomea.supabase.co";
         const SUPABASE_KEY = "sb_publishable_UH8BiQIRab4s4HiA7Gh20g_2B1AEMo9";
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        // إرسال أمر لتنزيل ملف
+        let currentPath = ""; // المسار الحالي يبدأ فارغاً (المجلد الرئيسي)
+
+        // طلب جلب محتويات مسار معين من الهاتف
+        async function fetchDirectory(path) {
+            currentPath = path;
+            document.getElementById('pathDisplay').innerText = `/Documents/NAS_Storage/${path}`;
+
+            // 1. إرسال أمر للهاتف بتحديث المجلد بناءً على المسار الجديد
+            await supabase.from('device_commands').insert([
+                { action: 'list_directory', file_path: path }
+            ]);
+
+            // 2. الانتظار قليلاً ثم جلب الملفات من جدول الكاش
+            setTimeout(loadFilesFromCache, 1000);
+        }
+
+        // تحميل الملفات من جدول الكاش في Supabase وعرضها في الجدول
+        async function loadFilesFromCache() {
+            const { data, error } = await supabase.from('device_files_cache').select('*');
+            const tbody = document.getElementById('fileTableBody');
+            
+            if (error || !data || data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" class="text-center py-6 text-slate-500">المجلد فارغ أو لم يتم الرد من الهاتف بعد.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = '';
+            data.forEach(item => {
+                const row = document.createElement('tr');
+                row.className = "hover:bg-slate-750 transition cursor-pointer";
+                
+                // إذا كان مجلد، نجعل الضغط عليه يفتحه مثل الـ Terminal
+                if (item.is_directory) {
+                    row.onclick = () => fetchDirectory(item.file_path);
+                }
+
+                row.innerHTML = `
+                    <td class="py-3 px-4 font-medium ${item.is_directory ? 'text-amber-400 font-bold' : 'text-slate-200'}">
+                        ${item.is_directory ? '📁 ' : '📄 '} ${item.file_name}
+                    </td>
+                    <td class="py-3 px-4">${item.is_directory ? 'مجلد' : 'ملف'}</td>
+                    <td class="py-3 px-4 text-slate-400">${item.is_directory ? item.items_count + ' عناصر' : item.file_size}</td>
+                    <td class="py-3 px-4 text-center" onclick="event.stopPropagation()">
+                        ${item.is_directory ? 
+                            `<button onclick="fetchDirectory('${item.file_path}')" class="bg-amber-600 hover:bg-amber-500 text-white px-3 py-1 rounded text-xs transition">فتح 📂</button>` :
+                            `<button onclick="quickUpload('${item.file_path}')" class="bg-cyan-600 hover:bg-cyan-500 text-white px-3 py-1 rounded text-xs transition">رفع للسحابة ⬆️</button>`
+                        }
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // زر الرجوع للخلف (CD ..)
+        function goBack() {
+            if (!currentPath || currentPath === "") return;
+            const parts = currentPath.split('/');
+            parts.pop(); // إزالة آخر مجلد للرجوع للخلف
+            const parentPath = parts.join('/');
+            fetchDirectory(parentPath);
+        }
+
+        // إرسال أمر تنزيل ملف للمسار الحالي
         async function sendDownloadCommand() {
             const fileUrl = document.getElementById('fileUrl').value.trim();
             const fileName = document.getElementById('fileName').value.trim();
@@ -95,88 +159,36 @@
                 return;
             }
 
-            const { error } = await supabase.from('device_commands').insert([
-                { action: 'download', file_url: fileUrl, file_name: fileName }
+            await supabase.from('device_commands').insert([
+                { action: 'download', file_url: fileUrl, file_name: fileName, file_path: currentPath }
             ]);
-
-            if (error) {
-                alert("حدث خطأ أثناء إرسال الأمر: " + error.message);
-            } else {
-                alert("✅ تم إرسال أمر التحميل للهاتف بنجاح!");
-                document.getElementById('fileUrl').value = '';
-                document.getElementById('fileName').value = '';
-            }
+            alert("✅ تم إرسال أمر التحميل للمسار الحالي بنجاح!");
         }
 
-        // إرسال أمر لرفع ملف من الهاتف للسحابة
+        // إرسال أمر الرفع
         async function sendUploadCommand() {
             const fileName = document.getElementById('uploadFileName').value.trim();
-
             if (!fileName) {
                 alert("يرجى إدخال اسم الملف.");
                 return;
             }
 
-            const { error } = await supabase.from('device_commands').insert([
-                { action: 'upload', file_name: fileName }
-            ]);
-
-            if (error) {
-                alert("حدث خطأ أثناء إرسال الأمر: " + error.message);
-            } else {
-                alert("✅ تم إرسال أمر الرفع الذكي للهاتف بنجاح!");
-                document.getElementById('uploadFileName').value = '';
-            }
-        }
-
-        // طلب تحديث المجلدات وتصفحها
-        async function refreshData() {
-            // إرسال أمر للهاتف لكي يزامن محتويات المجلد
             await supabase.from('device_commands').insert([
-                { action: 'list_directory', file_path: '' }
+                { action: 'upload', file_name: fileName, file_path: currentPath }
             ]);
-
-            // جلب البيانات المخزنة من جدول الكاش (Device Files Cache)
-            fetchFilesFromCache();
+            alert("✅ تم إرسال أمر الرفع الذكي.");
         }
 
-        // جلب الملفات المعروضة في قاعدة البيانات
-        async function fetchFilesFromCache() {
-            const { data, error } = await supabase.from('device_files_cache').select('*');
-            const tbody = document.getElementById('fileTableBody');
-            
-            if (error || !data || data.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="4" class="text-center py-6 text-slate-500">لا توجد ملفات مسجلة حالياً أو لم يتم الرد من الهاتف بعد.</td></tr>`;
-                return;
-            }
-
-            tbody.innerHTML = '';
-            data.forEach(item => {
-                const row = document.createElement('tr');
-                row.className = "hover:bg-slate-750 transition";
-                row.innerHTML = `
-                    <td class="py-3 px-4 font-medium text-slate-200">${item.file_name}</td>
-                    <td class="py-3 px-4">${item.is_directory ? '📁 مجلد' : '📄 ملف'}</td>
-                    <td class="py-3 px-4 text-slate-400">${item.is_directory ? item.items_count + ' عناصر' : (item.file_size || 'غير معروف')}</td>
-                    <td class="py-3 px-4 text-center">
-                        <button onclick="quickUpload('${item.file_name}')" class="bg-cyan-600 hover:bg-cyan-500 text-white px-3 py-1 rounded text-xs transition">رفع للسحابة</button>
-                    </td>
-                `;
-                tbody.appendChild(row);
-            });
-        }
-
-        // رفع سريع بضغط زر من الجدول
-        async function quickUpload(fileName) {
+        async function quickUpload(filePath) {
             await supabase.from('device_commands').insert([
-                { action: 'upload', file_name: fileName }
+                { action: 'upload', file_name: filePath, file_path: currentPath }
             ]);
-            alert(`تم طلب رفع الملف (${fileName}) للسحابة بصمت.`);
+            alert(`تم طلب رفع الملف (${filePath}) للسحابة بصمت.`);
         }
 
-        // جلب البيانات تلقائياً عند فتح الصفحة
+        // التحميل الأولي عند فتح الصفحة
         window.onload = () => {
-            fetchFilesFromCache();
+            fetchDirectory("");
         };
     </script>
 </body>
