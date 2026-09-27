@@ -146,6 +146,7 @@
         let currentImagePage = 1;
 
         // 🟢 جلب وعرض الأجهزة في القائمة المنسدلة
+        // 🟢 جلب وعرض الأجهزة في القائمة المنسدلة
         async function loadDevicesAndStatus() {
             try {
                 const { data, error } = await supabaseClient.from('device_status').select('*').order('last_seen', { ascending: false });
@@ -161,7 +162,8 @@
 
                     data.forEach(device => {
                         const diffSeconds = Math.abs(Date.now() - device.last_seen) / 1000;
-                        const isOnline = diffSeconds <= 150;
+                        // 🔴 زيادة السماحية لـ 10 دقائق (600 ثانية) لتفادي اختلاف التوقيت
+                        const isOnline = diffSeconds <= 600; 
                         const statusIcon = isOnline ? '🟢' : '🔴';
                         const shortId = device.device_id.substring(0, 6) + '...';
                         
@@ -173,18 +175,16 @@
                         if (device.device_id === activeDeviceId) isCurrentActiveStillFound = true;
                     });
 
-                    // لو مفيش جهاز محدد، اختار أحدث واحد تلقائياً
                     if (!activeDeviceId || !isCurrentActiveStillFound) {
                         activeDeviceId = data[0].device_id;
                         fetchDirectory(""); 
                     }
                     selector.value = activeDeviceId;
 
-                    // تحديث مؤشر الحالة بناءً على الجهاز المختار
                     const selectedDeviceData = allDevices.find(d => d.device_id === activeDeviceId);
                     if (selectedDeviceData) {
                         const diffSeconds = Math.abs(Date.now() - selectedDeviceData.last_seen) / 1000;
-                        if (diffSeconds <= 150) {
+                        if (diffSeconds <= 600) { // 🔴 التعديل هنا أيضاً
                             statusEl.innerHTML = `🟢 متصل`;
                             statusEl.className = "text-xs px-3 py-2 rounded-lg bg-slate-900 border border-emerald-500 text-emerald-400 font-bold shadow";
                         } else {
@@ -197,7 +197,7 @@
                 console.error(e);
             }
         }
-
+        
         function changeDevice() {
             activeDeviceId = document.getElementById('deviceSelector').value;
             loadDevicesAndStatus(); // تحديث الألوان
