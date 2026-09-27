@@ -156,7 +156,7 @@
 
                     data.forEach(device => {
                         const diffSeconds = Math.abs(Date.now() - device.last_seen) / 1000;
-                        const isOnline = diffSeconds <= 600;
+                        const isOnline = diffSeconds <= 30;
                         const statusIcon = isOnline ? '🟢' : '🔴';
                         const shortId = device.device_id.substring(0, 6) + '...';
                         
