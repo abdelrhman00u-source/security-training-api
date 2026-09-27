@@ -144,7 +144,7 @@
         let currentImagePage = 1;
         const imagePageSize = 10;
 
-        // 🟢 فحص حالة اتصال الجهاز دورياً (Heartbeat Check)
+        // 🟢 فحص حالة اتصال الجهاز دورياً (Heartbeat Check) - نسخة محسنة
         async function checkDeviceConnection() {
             try {
                 const { data, error } = await supabaseClient
@@ -154,9 +154,14 @@
                     .single();
 
                 const statusEl = document.getElementById('deviceStatusIndicator');
+                
                 if (data && data.last_seen) {
-                    const diffSeconds = (Date.now() - data.last_seen) / 1000;
-                    if (diffSeconds <= 90) {
+                    // استخدام القيمة المطلقة (Math.abs) لتفادي اختلاف توقيت الأجهزة
+                    const currentTime = Date.now();
+                    const diffSeconds = Math.abs(currentTime - data.last_seen) / 1000;
+                    
+                    // زيادة السماحية لـ 150 ثانية (دقيقتين ونصف)
+                    if (diffSeconds <= 150) {
                         statusEl.innerHTML = "🟢 الجهاز متصل الآن (Online)";
                         statusEl.className = "text-xs px-3 py-2 rounded-lg bg-slate-900 border border-emerald-500 text-emerald-400 font-bold shadow";
                     } else {
