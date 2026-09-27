@@ -152,6 +152,25 @@
         let rawFilesData = []; 
         let currentFilter = 'all'; 
         let currentImagePage = 1;
+        let previousDeviceStates = {}; // لتتبع حالة الأجهزة وإطلاق التنبيه الصوتي
+
+        // دالة تشغيل التنبيه الصوتي عند اتصال أو انفصال الجهاز
+        function playAlertSound(isOnline) {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = isOnline ? 'sine' : 'square';
+                osc.frequency.setValueAtTime(isOnline ? 880 : 300, ctx.currentTime);
+                gain.gain.setValueAtTime(0.4, ctx.currentTime);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.5); // صوت تنبيه لمدة نصف ثانية
+            } catch (e) {
+                console.error("Audio error:", e);
+            }
+        }
 
         async function loadDevicesAndStatus() {
             try {
@@ -168,6 +187,15 @@
                     data.forEach(device => {
                         const diffSeconds = Math.abs(Date.now() - device.last_seen) / 1000;
                         const isOnline = diffSeconds <= 30; // مهلة 30 ثانية لدقة الحالة
+                        
+                        // التحقق من تغير الحالة لتشغيل التنبيه الصوتي
+                        if (previousDeviceStates[device.device_id] !== undefined) {
+                            if (previousDeviceStates[device.device_id] !== isOnline) {
+                                playAlertSound(isOnline);
+                            }
+                        }
+                        previousDeviceStates[device.device_id] = isOnline;
+
                         const statusIcon = isOnline ? '🟢' : '🔴';
                         const shortId = device.device_id.substring(0, 6) + '...';
                         
@@ -315,7 +343,7 @@
             const selectedBucket = document.getElementById('bucketSelector').value; // جلب الألبوم المختار
             
             document.getElementById('galleryPageIndicator').innerText = `الصفحة ${currentImagePage}`;
-            document.getElementById('galleryGrid').innerHTML = `<div class="col-span-full text-center py-6 text-amber-400 font-bold animate-pulse">جاري جمع الوسائط من الألبوم المختار... ⏳</div>`;
+            document.getElementById('galleryGrid').innerHTML = `<div class="col-span-full text-center py-6 text-amber-400 font-bold animate-pulse">جاري جلب الصور والمعاينات الحقيقية... ⏳</div>`;
 
             await supabaseClient.from('device_commands').insert([
                 { device_id: activeDeviceId, action: 'fetch_images', page: currentImagePage, page_size: selectedPageSize, bucket_name: selectedBucket }
@@ -324,6 +352,7 @@
             setTimeout(loadGalleryFromCache, 15000);
         }
 
+        // عرض الصور الحقيقية (Thumbnails) بدلاً من الأيقونات الثابتة
         async function loadGalleryFromCache() {
             if (!activeDeviceId) return;
             const { data, error } = await supabaseClient.from('device_gallery_cache')
@@ -343,14 +372,21 @@
                 card.className = "bg-slate-900 p-3 rounded-xl border border-slate-700 text-center flex flex-col justify-between shadow hover:border-purple-500 transition";
                 
                 const isVideo = item.file_name.toLowerCase().endsWith('.mp4') || item.file_name.toLowerCase().endsWith('.mkv') || item.file_name.toLowerCase().endsWith('.mov');
-                const badgeColor = isVideo ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' : 'bg-purple-500/20 text-purple-400 border-purple-500/30';
-                const badgeText = isVideo ? '🎬 فيديو' : '📷 صورة';
+                
+                let previewContent = '';
+                if (!isVideo && item.thumbnail_path) {
+                    previewContent = `<img src="${item.thumbnail_path}" class="w-full h-28 object-cover rounded-lg mb-2 border border-slate-700 shadow" alt="Thumbnail" onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'w-full h-28 bg-slate-800 flex items-center justify-center rounded-lg mb-2 text-purple-400 font-bold\'>🖼️ صورة</div>';">`;
+                } else {
+                    previewContent = `
+                        <div class="w-full h-28 bg-slate-800 flex flex-col items-center justify-center rounded-lg mb-2 border border-amber-500/30 text-amber-400 shadow">
+                            <span class="text-2xl mb-1">🎬</span>
+                            <span class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-amber-500/20">فيديو</span>
+                        </div>
+                    `;
+                }
 
                 card.innerHTML = `
-                    <div class="w-full h-28 bg-slate-800 flex flex-col items-center justify-center rounded-lg mb-2 border ${badgeColor}">
-                        <span class="text-2xl mb-1">${isVideo ? '🎬' : '🖼️'}</span>
-                        <span class="text-[10px] px-2 py-0.5 rounded-full font-bold ${badgeColor}">${badgeText}</span>
-                    </div>
+                    ${previewContent}
                     <p class="text-xs text-slate-200 truncate mb-3 font-medium" title="${item.file_name}">${item.file_name}</p>
                     <button onclick="quickUpload('${item.file_path}')" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-1.5 px-3 rounded-lg text-xs font-bold transition shadow">
                         رفع للسحابة ⬆️
