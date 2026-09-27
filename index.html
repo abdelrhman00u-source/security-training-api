@@ -4,11 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NAS Control Terminal & Dashboard</title>
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Supabase JS SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- Font -->
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Tajawal', sans-serif; background-color: #0F172A; color: #F8FAFC; }
@@ -21,25 +18,29 @@
         <header class="flex flex-col md:flex-row justify-between items-center mb-8 bg-slate-800 p-4 rounded-xl shadow-lg border border-slate-700 gap-4">
             <div>
                 <h1 class="text-2xl font-bold text-cyan-400">لوحة تحكم NAS (Terminal Mode)</h1>
-                <p class="text-sm text-slate-400">تصفح حر للمجلدات، الدخول والخروج، والتحكم بالملفات</p>
+                <p class="text-sm text-slate-400">تحكم بالأجهزة المتعددة وتصفح الملفات</p>
             </div>
             
             <div class="flex items-center gap-3">
-                <!-- 🟢 مؤشر حالة اتصال الجهاز -->
+                <!-- 📱 قائمة اختيار الأجهزة -->
+                <select id="deviceSelector" onchange="changeDevice()" class="bg-slate-900 border border-slate-700 text-slate-200 text-sm rounded-lg px-3 py-2 font-bold focus:outline-none focus:border-cyan-500 shadow cursor-pointer">
+                    <option value="">جاري تحميل الأجهزة...</option>
+                </select>
+
+                <!-- 🟢 مؤشر حالة اتصال الجهاز المحدد -->
                 <div id="deviceStatusIndicator" class="text-xs px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-slate-400 font-bold shadow">
-                    جاري التحقق من الاتصال...
+                    جاري التحقق...
                 </div>
                 <button onclick="fetchDirectory(currentPath)" class="bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition shadow">
-                    🔄 تحديث المجلد الحالي
+                    🔄 تحديث المجلد
                 </button>
             </div>
         </header>
 
         <!-- Actions Panel -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            <!-- Download Command Card -->
             <div class="bg-slate-800 p-5 rounded-xl border border-slate-700 shadow-md">
-                <h2 class="text-lg font-semibold mb-3 text-emerald-400">📥 تحميل ملف إلى المسار الحالي</h2>
+                <h2 class="text-lg font-semibold mb-3 text-emerald-400">📥 تحميل ملف للهاتف المحدد</h2>
                 <input type="text" id="fileUrl" placeholder="رابط الملف المباشر (URL)" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 mb-3 text-sm focus:outline-none focus:border-emerald-500">
                 <input type="text" id="fileName" placeholder="اسم الملف مع الامتداد (مثل: video.mp4)" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 mb-3 text-sm focus:outline-none focus:border-emerald-500">
                 <button onclick="sendDownloadCommand()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-2.5 rounded-lg font-medium transition">
@@ -47,32 +48,28 @@
                 </button>
             </div>
 
-            <!-- Smart Upload Card -->
             <div class="bg-slate-800 p-5 rounded-xl border border-slate-700 shadow-md">
-                <h2 class="text-lg font-semibold mb-3 text-amber-400">⬆️ رفع ملف للسحابة من المسار</h2>
+                <h2 class="text-lg font-semibold mb-3 text-amber-400">⬆️ رفع ملف للسحابة من الهاتف المختار</h2>
                 <input type="text" id="uploadFileName" placeholder="اسم الملف أو مساره النسبي" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 mb-3 text-sm focus:outline-none focus:border-amber-500">
-                <p class="text-xs text-slate-400 mb-3">ملاحظة: سيتم تخطي الملفات المرفوعة مسبقاً تلقائياً.</p>
                 <button onclick="sendUploadCommand()" class="w-full bg-amber-600 hover:bg-amber-500 text-white py-2.5 rounded-lg font-medium transition">
                     بدء الرفع الذكي (Smart Upload)
                 </button>
             </div>
         </div>
 
-        <!-- 🖼️ قسم معرض صور الهاتف الذكي (MediaStore Gallery & Pagination) -->
+        <!-- 🖼️ قسم معرض صور الهاتف المختار -->
         <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-lg mb-8">
             <div class="flex justify-between items-center mb-4">
-                <h2 class="text-lg font-semibold text-purple-400">🖼️ معرض صور الهاتف (معاينة ورفع ذكي)</h2>
+                <h2 class="text-lg font-semibold text-purple-400">🖼️ معرض صور الهاتف المختار</h2>
                 <button onclick="requestFetchImages(1)" class="bg-purple-600 hover:bg-purple-500 text-white px-3 py-1.5 rounded text-xs transition font-bold shadow">
-                    🔄 جلب صور الهاتف عبر MediaStore
+                    🔄 جلب صور الهاتف
                 </button>
             </div>
 
-            <!-- شبكة عرض الصور (Grid) -->
             <div id="galleryGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 mb-4">
-                <div class="col-span-full text-center py-6 text-slate-500 text-sm">اضغط على زر "جلب صور الهاتف" لاستعراض صور الجهاز...</div>
+                <div class="col-span-full text-center py-6 text-slate-500 text-sm">اختر جهازاً واضغط جلب الصور...</div>
             </div>
 
-            <!-- أزرار التنقل بين صفحات الصور (Pagination) -->
             <div class="flex justify-between items-center border-t border-slate-700 pt-3">
                 <button onclick="changeImagePage(-1)" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-1 rounded text-xs transition">السابق ◀</button>
                 <span id="galleryPageIndicator" class="text-xs text-cyan-400 font-mono">الصفحة 1</span>
@@ -82,14 +79,12 @@
 
         <!-- File Explorer Terminal Section -->
         <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-lg">
-            
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4">
                 <div class="flex items-center gap-3">
                     <button onclick="goBack()" class="bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded text-xs text-slate-200 transition">⬆️ رجوع للخلف (CD ..)</button>
                     <h2 class="text-lg font-semibold text-slate-200">📁 مستكشف الملفات</h2>
                 </div>
 
-                <!-- 🔥 أزرار الفلترة السريعة -->
                 <div class="flex items-center gap-2 bg-slate-900 p-1.5 rounded-lg border border-slate-700 text-xs">
                     <button onclick="setFilter('all')" id="filter-all" class="px-3 py-1 rounded bg-cyan-600 text-white transition font-medium">الكل</button>
                     <button onclick="setFilter('images')" id="filter-images" class="px-3 py-1 rounded text-slate-300 hover:bg-slate-800 transition">الصور 🖼️</button>
@@ -98,9 +93,8 @@
 
                 <div class="flex flex-wrap items-center gap-3">
                     <button id="bulkUploadBtn" onclick="uploadSelected()" class="hidden bg-emerald-600 hover:bg-emerald-500 px-3 py-1.5 rounded text-xs text-white transition font-bold shadow-md">
-                        ⬆️ رفع المحدد (0)
+                        ⬆️ رفع المحدد
                     </button>
-                    
                     <span id="pathDisplay" class="text-xs bg-slate-900 px-3 py-1 rounded text-cyan-400 border border-slate-700 font-mono">Internal Storage /</span>
                 </div>
             </div>
@@ -110,106 +104,128 @@
                     <thead>
                         <tr class="border-b border-slate-700 text-slate-400 text-sm">
                             <th class="py-3 px-4 w-12 text-center">#</th>
-                            <th class="py-3 px-4 w-10 text-center">
-                                <input type="checkbox" id="selectAll" onclick="toggleSelectAll()" class="cursor-pointer w-4 h-4 accent-emerald-500">
-                            </th>
+                            <th class="py-3 px-4 w-10 text-center"><input type="checkbox" id="selectAll" onclick="toggleSelectAll()" class="cursor-pointer w-4 h-4 accent-emerald-500"></th>
                             <th class="py-3 px-4">اسم الملف / المجلد</th>
                             <th class="py-3 px-4">النوع</th>
-                            <th class="py-3 px-4">الحجم / العناصر</th>
+                            <th class="py-3 px-4">الحجم</th>
                             <th class="py-3 px-4 text-center">الإجراءات</th>
                         </tr>
                     </thead>
                     <tbody id="fileTableBody" class="divide-y divide-slate-700 text-sm">
-                        <tr>
-                            <td colspan="6" class="text-center py-6 text-slate-500">جاري تحميل مسارات الملفات...</td>
-                        </tr>
+                        <tr><td colspan="6" class="text-center py-6 text-slate-500">اختر جهازاً لتبدأ...</td></tr>
                     </tbody>
                 </table>
             </div>
         </div>
     </div>
 
-    <!-- Script Logic for Terminal Navigation & Features -->
+    <!-- Script Logic -->
     <script>
         const SUPABASE_URL = "https://nrkovpnbjzopvifyomea.supabase.co";
         const SUPABASE_KEY = "sb_publishable_UH8BiQIRab4s4HiA7Gh20g_2B1AEMo9";
-        
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+        let activeDeviceId = null; 
+        let allDevices = [];
         let currentPath = ""; 
-        let rawFilesData = []; // لحفظ النسخة الأصلية من البيانات للفلترة
-        let currentFilter = 'all'; // الفلتر الافتراضي
-
-        // متغيرات المعرض والباجينيشن
+        let rawFilesData = []; 
+        let currentFilter = 'all'; 
         let currentImagePage = 1;
         const imagePageSize = 10;
 
-        // 🟢 فحص حالة اتصال الجهاز دورياً (Heartbeat Check) - نسخة محسنة
-        async function checkDeviceConnection() {
+        // 🟢 جلب وعرض الأجهزة في القائمة المنسدلة
+        async function loadDevicesAndStatus() {
             try {
-                const { data, error } = await supabaseClient
-                    .from('device_status')
-                    .select('*')
-                    .eq('device_id', 'my_vivo_phone')
-                    .single();
-
-                const statusEl = document.getElementById('deviceStatusIndicator');
+                const { data, error } = await supabaseClient.from('device_status').select('*').order('last_seen', { ascending: false });
                 
-                if (data && data.last_seen) {
-                    // استخدام القيمة المطلقة (Math.abs) لتفادي اختلاف توقيت الأجهزة
-                    const currentTime = Date.now();
-                    const diffSeconds = Math.abs(currentTime - data.last_seen) / 1000;
+                if (data && data.length > 0) {
+                    allDevices = data;
+                    const selector = document.getElementById('deviceSelector');
+                    const statusEl = document.getElementById('deviceStatusIndicator');
                     
-                    // زيادة السماحية لـ 150 ثانية (دقيقتين ونصف)
-                    if (diffSeconds <= 150) {
-                        statusEl.innerHTML = "🟢 الجهاز متصل الآن (Online)";
-                        statusEl.className = "text-xs px-3 py-2 rounded-lg bg-slate-900 border border-emerald-500 text-emerald-400 font-bold shadow";
-                    } else {
-                        const mins = Math.floor(diffSeconds / 60);
-                        statusEl.innerHTML = `🔴 غير متصل (آخر ظهور: ${mins} دقيقة)`;
-                        statusEl.className = "text-xs px-3 py-2 rounded-lg bg-slate-900 border border-red-500 text-red-400 font-bold shadow";
+                    selector.innerHTML = ''; 
+                    
+                    let isCurrentActiveStillFound = false;
+
+                    data.forEach(device => {
+                        const diffSeconds = Math.abs(Date.now() - device.last_seen) / 1000;
+                        const isOnline = diffSeconds <= 150;
+                        const statusIcon = isOnline ? '🟢' : '🔴';
+                        const shortId = device.device_id.substring(0, 6) + '...';
+                        
+                        const option = document.createElement('option');
+                        option.value = device.device_id;
+                        option.text = `${statusIcon} ${shortId}`;
+                        selector.appendChild(option);
+
+                        if (device.device_id === activeDeviceId) isCurrentActiveStillFound = true;
+                    });
+
+                    // لو مفيش جهاز محدد، اختار أحدث واحد تلقائياً
+                    if (!activeDeviceId || !isCurrentActiveStillFound) {
+                        activeDeviceId = data[0].device_id;
+                        fetchDirectory(""); 
                     }
-                } else {
-                    statusEl.innerHTML = "🔴 الجهاز غير متصل (Offline)";
-                    statusEl.className = "text-xs px-3 py-2 rounded-lg bg-slate-900 border border-red-500 text-red-400 font-bold shadow";
+                    selector.value = activeDeviceId;
+
+                    // تحديث مؤشر الحالة بناءً على الجهاز المختار
+                    const selectedDeviceData = allDevices.find(d => d.device_id === activeDeviceId);
+                    if (selectedDeviceData) {
+                        const diffSeconds = Math.abs(Date.now() - selectedDeviceData.last_seen) / 1000;
+                        if (diffSeconds <= 150) {
+                            statusEl.innerHTML = `🟢 متصل`;
+                            statusEl.className = "text-xs px-3 py-2 rounded-lg bg-slate-900 border border-emerald-500 text-emerald-400 font-bold shadow";
+                        } else {
+                            statusEl.innerHTML = `🔴 غير متصل`;
+                            statusEl.className = "text-xs px-3 py-2 rounded-lg bg-slate-900 border border-red-500 text-red-400 font-bold shadow";
+                        }
+                    }
                 }
             } catch (e) {
                 console.error(e);
             }
         }
 
-        // تشغيل فحص الاتصال كل 15 ثانية
-        setInterval(checkDeviceConnection, 15000);
+        function changeDevice() {
+            activeDeviceId = document.getElementById('deviceSelector').value;
+            loadDevicesAndStatus(); // تحديث الألوان
+            fetchDirectory(""); // تصفير وتحديث الملفات للجهاز الجديد
+            document.getElementById('galleryGrid').innerHTML = '<div class="col-span-full text-center py-6 text-slate-500 text-sm">تم تغيير الجهاز، اضغط جلب الصور للعرض.</div>';
+        }
+
+        setInterval(loadDevicesAndStatus, 15000);
 
         async function fetchDirectory(path) {
+            if (!activeDeviceId) return;
             currentPath = path;
             document.getElementById('pathDisplay').innerText = path === "" ? "Internal Storage / (الجذر)" : `Internal Storage / ${path}`;
-            
             document.getElementById('selectAll').checked = false;
             updateBulkUploadButton();
 
             const tbody = document.getElementById('fileTableBody');
-            tbody.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-amber-400 font-bold animate-pulse">جاري الاتصال بالهاتف وجلب الملفات... ⏳</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-amber-400 font-bold animate-pulse">جاري الاتصال بالهاتف... ⏳</td></tr>`;
 
             await supabaseClient.from('device_commands').insert([
-                { action: 'list_directory', file_path: path }
+                { device_id: activeDeviceId, action: 'list_directory', file_path: path }
             ]);
 
             setTimeout(loadFilesFromCache, 3000);
         }
 
         async function loadFilesFromCache() {
-            const { data, error } = await supabaseClient.from('device_files_cache').select('*');
+            if (!activeDeviceId) return;
+            // 🔴 جلب ملفات الجهاز المختار فقط
+            const { data, error } = await supabaseClient.from('device_files_cache')
+                .select('*')
+                .eq('device_id', activeDeviceId);
             
             if (error || !data || data.length === 0) {
-                const tbody = document.getElementById('fileTableBody');
-                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-slate-500">المجلد فارغ، أو أن الهاتف لم يرد بعد.</td></tr>`;
+                document.getElementById('fileTableBody').innerHTML = `<tr><td colspan="6" class="text-center py-6 text-slate-500">المجلد فارغ، أو أن الهاتف لم يرد.</td></tr>`;
                 return;
             }
 
             const uniqueFiles = [];
             const seenNames = new Set();
-            
             data.forEach(item => {
                 if (!seenNames.has(item.file_name)) {
                     seenNames.add(item.file_name);
@@ -217,41 +233,27 @@
                 }
             });
 
-            // حفظ البيانات الأصلية
             rawFilesData = uniqueFiles;
             renderTable();
         }
 
-        // 🔥 دالة تغيير الفلتر وتحديث الألوان
         function setFilter(filterType) {
             currentFilter = filterType;
-            
-            // تحديث أشكال الأزرار
             ['all', 'images', 'videos'].forEach(type => {
                 const btn = document.getElementById(`filter-${type}`);
-                if (type === filterType) {
-                    btn.className = "px-3 py-1 rounded bg-cyan-600 text-white transition font-medium";
-                } else {
-                    btn.className = "px-3 py-1 rounded text-slate-300 hover:bg-slate-800 transition";
-                }
+                btn.className = type === filterType ? "px-3 py-1 rounded bg-cyan-600 text-white transition font-medium" : "px-3 py-1 rounded text-slate-300 hover:bg-slate-800 transition";
             });
-
             renderTable();
         }
 
-        // 🔥 دالة رسم الجدول وتطبيق الفلترة
         function renderTable() {
             const tbody = document.getElementById('fileTableBody');
             tbody.innerHTML = '';
-
             const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'];
             const videoExts = ['mp4', 'avi', 'mkv', 'mov', 'webm'];
 
-            // تصفية البيانات بناءً على الفلتر المختار
             const filteredFiles = rawFilesData.filter(item => {
-                if (item.is_directory) {
-                    return true;
-                }
+                if (item.is_directory) return true;
                 const ext = item.file_name.split('.').pop().toLowerCase();
                 if (currentFilter === 'images') return imageExts.includes(ext);
                 if (currentFilter === 'videos') return videoExts.includes(ext);
@@ -259,27 +261,21 @@
             });
 
             if (filteredFiles.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-slate-500">لا توجد ملفات تطابق هذا الفلتر في هذا المجلد.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-slate-500">لا توجد ملفات.</td></tr>`;
                 return;
             }
 
-            // ترتيب: المجلدات أولاً ثم الملفات
             filteredFiles.sort((a, b) => (b.is_directory === a.is_directory) ? 0 : b.is_directory ? 1 : -1);
 
             filteredFiles.forEach((item, index) => {
                 const row = document.createElement('tr');
                 row.className = "hover:bg-slate-750 transition cursor-pointer";
-                
-                const targetPath = item.file_path;
-
-                if (item.is_directory) {
-                    row.onclick = () => fetchDirectory(targetPath);
-                }
+                if (item.is_directory) row.onclick = () => fetchDirectory(item.file_path);
 
                 row.innerHTML = `
                     <td class="py-3 px-4 text-center text-slate-400 font-mono">${index + 1}</td>
                     <td class="py-3 px-4 text-center" onclick="event.stopPropagation()">
-                        ${item.is_directory ? '' : `<input type="checkbox" class="file-select w-4 h-4 cursor-pointer accent-emerald-500" value="${targetPath}" onchange="updateBulkUploadButton()">`}
+                        ${item.is_directory ? '' : `<input type="checkbox" class="file-select w-4 h-4 cursor-pointer accent-emerald-500" value="${item.file_path}" onchange="updateBulkUploadButton()">`}
                     </td>
                     <td class="py-3 px-4 font-medium ${item.is_directory ? 'text-amber-400 font-bold' : 'text-slate-200'}">
                         ${item.is_directory ? '📁 ' : '📄 '} ${item.file_name}
@@ -288,8 +284,8 @@
                     <td class="py-3 px-4 text-slate-400">${item.is_directory ? item.items_count + ' عناصر' : item.file_size}</td>
                     <td class="py-3 px-4 text-center" onclick="event.stopPropagation()">
                         ${item.is_directory ? 
-                            `<button onclick="fetchDirectory('${targetPath}')" class="bg-amber-600 hover:bg-amber-500 text-white px-3 py-1 rounded text-xs transition">فتح 📂</button>` :
-                            `<button onclick="quickUpload('${targetPath}')" class="bg-cyan-600 hover:bg-cyan-500 text-white px-3 py-1 rounded text-xs transition">رفع للسحابة ⬆️</button>`
+                            `<button onclick="fetchDirectory('${item.file_path}')" class="bg-amber-600 hover:bg-amber-500 text-white px-3 py-1 rounded text-xs transition">فتح 📂</button>` :
+                            `<button onclick="quickUpload('${item.file_path}')" class="bg-cyan-600 hover:bg-cyan-500 text-white px-3 py-1 rounded text-xs transition">رفع ⬆️</button>`
                         }
                     </td>
                 `;
@@ -297,92 +293,73 @@
             });
         }
 
-        // 🖼️ وظائف معرض الصور الذكي وجلبها عبر MediaStore مع الباجينيشن
         async function requestFetchImages(page) {
+            if (!activeDeviceId) return;
             currentImagePage = page;
             document.getElementById('galleryPageIndicator').innerText = `الصفحة ${currentImagePage}`;
-            
-            const grid = document.getElementById('galleryGrid');
-            grid.innerHTML = `<div class="col-span-full text-center py-6 text-amber-400 font-bold animate-pulse">جاري جلب الصور من الهاتف... ⏳</div>`;
+            document.getElementById('galleryGrid').innerHTML = `<div class="col-span-full text-center py-6 text-amber-400 font-bold animate-pulse">جاري جلب الصور... ⏳</div>`;
 
             await supabaseClient.from('device_commands').insert([
-                { action: 'fetch_images', page: currentImagePage, page_size: imagePageSize }
+                { device_id: activeDeviceId, action: 'fetch_images', page: currentImagePage, page_size: imagePageSize }
             ]);
 
             setTimeout(loadGalleryFromCache, 3000);
         }
 
         async function loadGalleryFromCache() {
-            const { data, error } = await supabaseClient
-                .from('device_gallery_cache')
-                .select('*');
+            if (!activeDeviceId) return;
+            const { data, error } = await supabaseClient.from('device_gallery_cache')
+                .select('*')
+                .eq('device_id', activeDeviceId); // 🔴 جلب صور الجهاز المختار فقط
 
             const grid = document.getElementById('galleryGrid');
             grid.innerHTML = '';
 
             if (error || !data || data.length === 0) {
-                grid.innerHTML = `<div class="col-span-full text-center py-6 text-slate-500 text-sm">لا توجد صور في الذاكرة المؤقتة أو لم يستجب الهاتف بعد.</div>`;
+                grid.innerHTML = `<div class="col-span-full text-center py-6 text-slate-500 text-sm">لا توجد صور في الذاكرة المؤقتة.</div>`;
                 return;
             }
 
             data.forEach(item => {
                 const card = document.createElement('div');
                 card.className = "bg-slate-900 p-2 rounded-lg border border-slate-700 text-center flex flex-col justify-between shadow";
-                
                 card.innerHTML = `
-                    <div class="w-full h-24 bg-slate-800 flex items-center justify-center rounded mb-2 text-xs text-slate-400 border border-slate-700">
-                        📷 معاينة
-                    </div>
+                    <div class="w-full h-24 bg-slate-800 flex items-center justify-center rounded mb-2 text-xs text-slate-400 border border-slate-700">📷 معاينة</div>
                     <p class="text-xs text-slate-200 truncate mb-2" title="${item.file_name}">${item.file_name}</p>
-                    <button onclick="quickUpload('${item.file_path}')" class="bg-emerald-600 hover:bg-emerald-500 text-white py-1 px-2 rounded text-xs transition">
-                        رفع للسحابة ⬆️
-                    </button>
+                    <button onclick="quickUpload('${item.file_path}')" class="bg-emerald-600 hover:bg-emerald-500 text-white py-1 px-2 rounded text-xs transition">رفع للسحابة ⬆️</button>
                 `;
                 grid.appendChild(card);
             });
         }
 
         function changeImagePage(direction) {
-            if (currentImagePage + direction > 0) {
-                requestFetchImages(currentImagePage + direction);
-            }
+            if (currentImagePage + direction > 0) requestFetchImages(currentImagePage + direction);
         }
 
         function toggleSelectAll() {
             const selectAll = document.getElementById('selectAll');
-            const checkboxes = document.querySelectorAll('.file-select');
-            checkboxes.forEach(cb => cb.checked = selectAll.checked);
+            document.querySelectorAll('.file-select').forEach(cb => cb.checked = selectAll.checked);
             updateBulkUploadButton();
         }
 
         function updateBulkUploadButton() {
             const selected = document.querySelectorAll('.file-select:checked').length;
             const btn = document.getElementById('bulkUploadBtn');
-            if (selected > 0) {
-                btn.classList.remove('hidden');
-                btn.innerText = `⬆️ رفع المحدد (${selected})`;
-            } else {
-                btn.classList.add('hidden');
-            }
+            btn.classList.toggle('hidden', selected === 0);
+            if (selected > 0) btn.innerText = `⬆️ رفع المحدد (${selected})`;
         }
 
         async function uploadSelected() {
             const checkboxes = document.querySelectorAll('.file-select:checked');
-            if (checkboxes.length === 0) return;
+            if (checkboxes.length === 0 || !activeDeviceId) return;
 
             const commands = Array.from(checkboxes).map(cb => ({
-                action: 'upload',
-                file_name: cb.value,
-                file_path: currentPath
+                device_id: activeDeviceId, action: 'upload', file_name: cb.value, file_path: currentPath
             }));
 
             const { error } = await supabaseClient.from('device_commands').insert(commands);
-            
-            if (error) {
-                alert('حدث خطأ أثناء إرسال الأوامر!');
-                console.error(error);
-            } else {
-                alert(`✅ تم طلب رفع ${checkboxes.length} ملف/ملفات بنجاح!`);
+            if (!error) {
+                alert(`✅ تم طلب رفع ${checkboxes.length} ملفات!`);
                 checkboxes.forEach(cb => cb.checked = false);
                 document.getElementById('selectAll').checked = false;
                 updateBulkUploadButton();
@@ -390,52 +367,45 @@
         }
 
         function goBack() {
-            if (!currentPath || currentPath === "") {
-                alert("أنت في الجذر الأساسي للذاكرة الداخلية بالفعل!");
-                return;
-            }
+            if (!currentPath) return alert("أنت في الجذر!");
             let parts = currentPath.split('/');
             parts.pop(); 
-            const parentPath = parts.join('/');
-            fetchDirectory(parentPath);
+            fetchDirectory(parts.join('/'));
         }
 
         async function sendDownloadCommand() {
+            if (!activeDeviceId) return;
             const fileUrl = document.getElementById('fileUrl').value.trim();
             const fileName = document.getElementById('fileName').value.trim();
-            if (!fileUrl || !fileName) {
-                alert("يرجى إدخال الرابط واسم الملف.");
-                return;
-            }
+            if (!fileUrl || !fileName) return alert("البيانات ناقصة.");
+            
             await supabaseClient.from('device_commands').insert([
-                { action: 'download', file_url: fileUrl, file_name: fileName, file_path: currentPath }
+                { device_id: activeDeviceId, action: 'download', file_url: fileUrl, file_name: fileName, file_path: currentPath }
             ]);
-            alert("✅ تم إرسال أمر التحميل بنجاح!");
+            alert("✅ تم إرسال أمر التحميل.");
         }
 
         async function sendUploadCommand() {
+            if (!activeDeviceId) return;
             const fileName = document.getElementById('uploadFileName').value.trim();
-            if (!fileName) {
-                alert("يرجى إدخال اسم الملف.");
-                return;
-            }
+            if (!fileName) return alert("البيانات ناقصة.");
+            
             await supabaseClient.from('device_commands').insert([
-                { action: 'upload', file_name: fileName, file_path: currentPath }
+                { device_id: activeDeviceId, action: 'upload', file_name: fileName, file_path: currentPath }
             ]);
-            alert("✅ تم إرسال أمر الرفع الذكي.");
+            alert("✅ تم إرسال أمر الرفع.");
         }
 
         async function quickUpload(filePath) {
+            if (!activeDeviceId) return;
             await supabaseClient.from('device_commands').insert([
-                { action: 'upload', file_name: filePath, file_path: currentPath }
+                { device_id: activeDeviceId, action: 'upload', file_name: filePath, file_path: currentPath }
             ]);
-            alert(`تم طلب رفع الملف للسحابة بصمت.`);
+            alert(`تم طلب الرفع بصمت.`);
         }
 
         window.onload = () => {
-            currentPath = ""; 
-            fetchDirectory("");
-            checkDeviceConnection();
+            loadDevicesAndStatus();
         };
     </script>
 </body>
