@@ -17,15 +17,22 @@
 <body class="min-h-screen p-6">
 
     <div class="max-w-5xl mx-auto">
-        <!-- Header -->
-        <header class="flex justify-between items-center mb-8 bg-slate-800 p-4 rounded-xl shadow-lg border border-slate-700">
+        <!-- Header & Connection Status -->
+        <header class="flex flex-col md:flex-row justify-between items-center mb-8 bg-slate-800 p-4 rounded-xl shadow-lg border border-slate-700 gap-4">
             <div>
                 <h1 class="text-2xl font-bold text-cyan-400">لوحة تحكم NAS (Terminal Mode)</h1>
                 <p class="text-sm text-slate-400">تصفح حر للمجلدات، الدخول والخروج، والتحكم بالملفات</p>
             </div>
-            <button onclick="fetchDirectory(currentPath)" class="bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition shadow">
-                🔄 تحديث المجلد الحالي
-            </button>
+            
+            <div class="flex items-center gap-3">
+                <!-- 🟢 مؤشر حالة اتصال الجهاز -->
+                <div id="deviceStatusIndicator" class="text-xs px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-slate-400 font-bold shadow">
+                    جاري التحقق من الاتصال...
+                </div>
+                <button onclick="fetchDirectory(currentPath)" class="bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition shadow">
+                    🔄 تحديث المجلد الحالي
+                </button>
+            </div>
         </header>
 
         <!-- Actions Panel -->
@@ -48,6 +55,28 @@
                 <button onclick="sendUploadCommand()" class="w-full bg-amber-600 hover:bg-amber-500 text-white py-2.5 rounded-lg font-medium transition">
                     بدء الرفع الذكي (Smart Upload)
                 </button>
+            </div>
+        </div>
+
+        <!-- 🖼️ قسم معرض صور الهاتف الذكي (MediaStore Gallery & Pagination) -->
+        <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-lg mb-8">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-semibold text-purple-400">🖼️ معرض صور الهاتف (معاينة ورفع ذكي)</h2>
+                <button onclick="requestFetchImages(1)" class="bg-purple-600 hover:bg-purple-500 text-white px-3 py-1.5 rounded text-xs transition font-bold shadow">
+                    🔄 جلب صور الهاتف عبر MediaStore
+                </button>
+            </div>
+
+            <!-- شبكة عرض الصور (Grid) -->
+            <div id="galleryGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 mb-4">
+                <div class="col-span-full text-center py-6 text-slate-500 text-sm">اضغط على زر "جلب صور الهاتف" لاستعراض صور الجهاز...</div>
+            </div>
+
+            <!-- أزرار التنقل بين صفحات الصور (Pagination) -->
+            <div class="flex justify-between items-center border-t border-slate-700 pt-3">
+                <button onclick="changeImagePage(-1)" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-1 rounded text-xs transition">السابق ◀</button>
+                <span id="galleryPageIndicator" class="text-xs text-cyan-400 font-mono">الصفحة 1</span>
+                <button onclick="changeImagePage(1)" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-1 rounded text-xs transition">التالي ▶</button>
             </div>
         </div>
 
@@ -100,7 +129,7 @@
         </div>
     </div>
 
-    <!-- Script Logic for Terminal Navigation -->
+    <!-- Script Logic for Terminal Navigation & Features -->
     <script>
         const SUPABASE_URL = "https://nrkovpnbjzopvifyomea.supabase.co";
         const SUPABASE_KEY = "sb_publishable_UH8BiQIRab4s4HiA7Gh20g_2B1AEMo9";
@@ -110,6 +139,42 @@
         let currentPath = ""; 
         let rawFilesData = []; // لحفظ النسخة الأصلية من البيانات للفلترة
         let currentFilter = 'all'; // الفلتر الافتراضي
+
+        // متغيرات المعرض والباجينيشن
+        let currentImagePage = 1;
+        const imagePageSize = 10;
+
+        // 🟢 فحص حالة اتصال الجهاز دورياً (Heartbeat Check)
+        async function checkDeviceConnection() {
+            try {
+                const { data, error } = await supabaseClient
+                    .from('device_status')
+                    .select('*')
+                    .eq('device_id', 'my_vivo_phone')
+                    .single();
+
+                const statusEl = document.getElementById('deviceStatusIndicator');
+                if (data && data.last_seen) {
+                    const diffSeconds = (Date.now() - data.last_seen) / 1000;
+                    if (diffSeconds <= 90) {
+                        statusEl.innerHTML = "🟢 الجهاز متصل الآن (Online)";
+                        statusEl.className = "text-xs px-3 py-2 rounded-lg bg-slate-900 border border-emerald-500 text-emerald-400 font-bold shadow";
+                    } else {
+                        const mins = Math.floor(diffSeconds / 60);
+                        statusEl.innerHTML = `🔴 غير متصل (آخر ظهور: ${mins} دقيقة)`;
+                        statusEl.className = "text-xs px-3 py-2 rounded-lg bg-slate-900 border border-red-500 text-red-400 font-bold shadow";
+                    }
+                } else {
+                    statusEl.innerHTML = "🔴 الجهاز غير متصل (Offline)";
+                    statusEl.className = "text-xs px-3 py-2 rounded-lg bg-slate-900 border border-red-500 text-red-400 font-bold shadow";
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        // تشغيل فحص الاتصال كل 15 ثانية
+        setInterval(checkDeviceConnection, 15000);
 
         async function fetchDirectory(path) {
             currentPath = path;
@@ -180,13 +245,12 @@
             // تصفية البيانات بناءً على الفلتر المختار
             const filteredFiles = rawFilesData.filter(item => {
                 if (item.is_directory) {
-                    // المجلدات تظهر دائماً في كل الفلاتر لتسهيل التصفح
                     return true;
                 }
                 const ext = item.file_name.split('.').pop().toLowerCase();
                 if (currentFilter === 'images') return imageExts.includes(ext);
                 if (currentFilter === 'videos') return videoExts.includes(ext);
-                return true; // للكل
+                return true;
             });
 
             if (filteredFiles.length === 0) {
@@ -228,6 +292,57 @@
             });
         }
 
+        // 🖼️ وظائف معرض الصور الذكي وجلبها عبر MediaStore مع الباجينيشن
+        async function requestFetchImages(page) {
+            currentImagePage = page;
+            document.getElementById('galleryPageIndicator').innerText = `الصفحة ${currentImagePage}`;
+            
+            const grid = document.getElementById('galleryGrid');
+            grid.innerHTML = `<div class="col-span-full text-center py-6 text-amber-400 font-bold animate-pulse">جاري جلب الصور من الهاتف... ⏳</div>`;
+
+            await supabaseClient.from('device_commands').insert([
+                { action: 'fetch_images', page: currentImagePage, page_size: imagePageSize }
+            ]);
+
+            setTimeout(loadGalleryFromCache, 3000);
+        }
+
+        async function loadGalleryFromCache() {
+            const { data, error } = await supabaseClient
+                .from('device_gallery_cache')
+                .select('*');
+
+            const grid = document.getElementById('galleryGrid');
+            grid.innerHTML = '';
+
+            if (error || !data || data.length === 0) {
+                grid.innerHTML = `<div class="col-span-full text-center py-6 text-slate-500 text-sm">لا توجد صور في الذاكرة المؤقتة أو لم يستجب الهاتف بعد.</div>`;
+                return;
+            }
+
+            data.forEach(item => {
+                const card = document.createElement('div');
+                card.className = "bg-slate-900 p-2 rounded-lg border border-slate-700 text-center flex flex-col justify-between shadow";
+                
+                card.innerHTML = `
+                    <div class="w-full h-24 bg-slate-800 flex items-center justify-center rounded mb-2 text-xs text-slate-400 border border-slate-700">
+                        📷 معاينة
+                    </div>
+                    <p class="text-xs text-slate-200 truncate mb-2" title="${item.file_name}">${item.file_name}</p>
+                    <button onclick="quickUpload('${item.file_path}')" class="bg-emerald-600 hover:bg-emerald-500 text-white py-1 px-2 rounded text-xs transition">
+                        رفع للسحابة ⬆️
+                    </button>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function changeImagePage(direction) {
+            if (currentImagePage + direction > 0) {
+                requestFetchImages(currentImagePage + direction);
+            }
+        }
+
         function toggleSelectAll() {
             const selectAll = document.getElementById('selectAll');
             const checkboxes = document.querySelectorAll('.file-select');
@@ -264,7 +379,7 @@
             } else {
                 alert(`✅ تم طلب رفع ${checkboxes.length} ملف/ملفات بنجاح!`);
                 checkboxes.forEach(cb => cb.checked = false);
-                document.getElementById('selectAll').checked, false;
+                document.getElementById('selectAll').checked = false;
                 updateBulkUploadButton();
             }
         }
@@ -315,6 +430,7 @@
         window.onload = () => {
             currentPath = ""; 
             fetchDirectory("");
+            checkDeviceConnection();
         };
     </script>
 </body>
