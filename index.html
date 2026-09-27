@@ -243,7 +243,7 @@
             renderTable();
         }
 
-        function renderTable() {
+       function renderTable() {
             const tbody = document.getElementById('fileTableBody');
             tbody.innerHTML = '';
             const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'];
@@ -269,6 +269,27 @@
                 row.className = "hover:bg-slate-750 transition cursor-pointer";
                 if (item.is_directory) row.onclick = () => fetchDirectory(item.file_path);
 
+                // تحديد شكل وزر الإجراءات بناءً على حالة الرفع (upload_status)
+                let actionButtonHtml = '';
+                if (item.is_directory) {
+                    actionButtonHtml = `<button onclick="fetchDirectory('${item.file_path}')" class="bg-amber-600 hover:bg-amber-500 text-white px-3 py-1 rounded text-xs transition">فتح 📂</button>`;
+                } else {
+                    if (item.upload_status === 'uploading') {
+                        actionButtonHtml = `<button disabled class="bg-amber-500/30 text-amber-300 px-3 py-1 rounded text-xs font-bold animate-pulse cursor-not-allowed">⏳ جاري الرفع...</button>`;
+                    } else if (item.upload_status === 'completed') {
+                        actionButtonHtml = `
+                            <div class="flex items-center justify-center gap-2">
+                                <span class="text-emerald-400 text-xs font-bold">✅ تم</span>
+                                ${item.cloud_url ? `<a href="${item.cloud_url}" target="_blank" class="bg-cyan-600 hover:bg-cyan-500 text-white px-2 py-1 rounded text-[10px] transition">🔗 عرض</a>` : ''}
+                            </div>
+                        `;
+                    } else if (item.upload_status === 'failed') {
+                        actionButtonHtml = `<button onclick="quickUpload('${item.file_path}')" class="bg-red-600 hover:bg-red-500 text-white px-3 py-1 rounded text-xs transition">❌ إعادة محاولة</button>`;
+                    } else {
+                        actionButtonHtml = `<button onclick="quickUpload('${item.file_path}')" class="bg-cyan-600 hover:bg-cyan-500 text-white px-3 py-1 rounded text-xs transition">رفع ⬆️</button>`;
+                    }
+                }
+
                 row.innerHTML = `
                     <td class="py-3 px-4 text-center text-slate-400 font-mono">${index + 1}</td>
                     <td class="py-3 px-4 text-center" onclick="event.stopPropagation()">
@@ -280,10 +301,7 @@
                     <td class="py-3 px-4">${item.is_directory ? 'مجلد' : 'ملف'}</td>
                     <td class="py-3 px-4 text-slate-400">${item.is_directory ? item.items_count + ' عناصر' : item.file_size}</td>
                     <td class="py-3 px-4 text-center" onclick="event.stopPropagation()">
-                        ${item.is_directory ? 
-                            `<button onclick="fetchDirectory('${item.file_path}')" class="bg-amber-600 hover:bg-amber-500 text-white px-3 py-1 rounded text-xs transition">فتح 📂</button>` :
-                            `<button onclick="quickUpload('${item.file_path}')" class="bg-cyan-600 hover:bg-cyan-500 text-white px-3 py-1 rounded text-xs transition">رفع ⬆️</button>`
-                        }
+                        ${actionButtonHtml}
                     </td>
                 `;
                 tbody.appendChild(row);
