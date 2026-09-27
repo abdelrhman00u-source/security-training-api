@@ -86,7 +86,7 @@
                             <th class="py-3 px-4">اسم الملف / المجلد</th>
                             <th class="py-3 px-4">النوع</th>
                             <th class="py-3 px-4">الحجم</th>
-                            <th class="py-3 px-4 text-center">الإجراءات</th>
+                            <th class="py-3 px-4 text-center">الإجراءات وحالة الرفع</th>
                         </tr>
                     </thead>
                     <tbody id="fileTableBody" class="divide-y divide-slate-700 text-sm">
@@ -110,7 +110,7 @@
         let currentFilter = 'all'; 
         let previousDeviceStates = {};
 
-        // دالة تشغيل التنبيه الصوتي عند اتصال أو انفصال الجهاز
+        // دالة التنبيه الصوتي
         function playAlertSound(isOnline) {
             try {
                 const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -243,7 +243,7 @@
             renderTable();
         }
 
-       function renderTable() {
+        function renderTable() {
             const tbody = document.getElementById('fileTableBody');
             tbody.innerHTML = '';
             const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'];
@@ -269,7 +269,6 @@
                 row.className = "hover:bg-slate-750 transition cursor-pointer";
                 if (item.is_directory) row.onclick = () => fetchDirectory(item.file_path);
 
-                // تحديد شكل وزر الإجراءات بناءً على حالة الرفع (upload_status)
                 let actionButtonHtml = '';
                 if (item.is_directory) {
                     actionButtonHtml = `<button onclick="fetchDirectory('${item.file_path}')" class="bg-amber-600 hover:bg-amber-500 text-white px-3 py-1 rounded text-xs transition">فتح 📂</button>`;
@@ -279,8 +278,8 @@
                     } else if (item.upload_status === 'completed') {
                         actionButtonHtml = `
                             <div class="flex items-center justify-center gap-2">
-                                <span class="text-emerald-400 text-xs font-bold">✅ تم</span>
-                                ${item.cloud_url ? `<a href="${item.cloud_url}" target="_blank" class="bg-cyan-600 hover:bg-cyan-500 text-white px-2 py-1 rounded text-[10px] transition">🔗 عرض</a>` : ''}
+                                <span class="text-emerald-400 text-xs font-bold">✅ تم الرفع</span>
+                                ${item.cloud_url ? `<a href="${item.cloud_url}" target="_blank" class="bg-cyan-600 hover:bg-cyan-500 text-white px-2.5 py-1 rounded text-[10px] transition">🔗 عرض</a>` : ''}
                             </div>
                         `;
                     } else if (item.upload_status === 'failed') {
