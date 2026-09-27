@@ -375,8 +375,21 @@
             alert(`تم طلب الرفع للسحابة.`);
         }
 
+        // تفعيل الاستماع الفوري للتحديثات (Realtime) لتغيير حالات الرفع تلقائياً
+        function setupRealtimeSubscription() {
+            supabaseClient
+                .channel('public:device_files_cache')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'device_files_cache' }, payload => {
+                    if (activeDeviceId && payload.new && payload.new.device_id === activeDeviceId) {
+                        loadFilesFromCache();
+                    }
+                })
+                .subscribe();
+        }
+
         window.onload = () => {
             loadDevicesAndStatus();
+            setupRealtimeSubscription();
         };
     </script>
 </body>
