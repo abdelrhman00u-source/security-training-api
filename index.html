@@ -63,10 +63,19 @@
                     <h2 class="text-lg font-semibold text-slate-200">📁 مستكشف الملفات</h2>
                 </div>
 
-                <div class="flex items-center gap-2 bg-slate-900 p-1.5 rounded-lg border border-slate-700 text-xs">
-                    <button onclick="setFilter('all')" id="filter-all" class="px-3 py-1 rounded bg-cyan-600 text-white transition font-medium">الكل</button>
-                    <button onclick="setFilter('images')" id="filter-images" class="px-3 py-1 rounded text-slate-300 hover:bg-slate-800 transition">الصور 🖼️</button>
-                    <button onclick="setFilter('videos')" id="filter-videos" class="px-3 py-1 rounded text-slate-300 hover:bg-slate-800 transition">الفيديوهات 🎬</button>
+                <!-- أدوات التصفية والترتيب -->
+                <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-1 bg-slate-900 p-1 rounded-lg border border-slate-700 text-xs">
+                        <button onclick="setFilter('all')" id="filter-all" class="px-2.5 py-1 rounded bg-cyan-600 text-white transition font-medium">الكل</button>
+                        <button onclick="setFilter('images')" id="filter-images" class="px-2.5 py-1 rounded text-slate-300 hover:bg-slate-800 transition">الصور 🖼️</button>
+                        <button onclick="setFilter('videos')" id="filter-videos" class="px-2.5 py-1 rounded text-slate-300 hover:bg-slate-800 transition">الفيديوهات 🎬</button>
+                    </div>
+
+                    <!-- خيار الترتيب -->
+                    <select id="sortOrderSelector" onchange="renderTable()" class="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-lg px-2 py-1.5 focus:outline-none focus:border-cyan-500 cursor-pointer">
+                        <option value="newest">الأسماء: أ-ي (أو الأحدث)</option>
+                        <option value="oldest">الأسماء: ي-أ (أو الأقدم)</option>
+                    </select>
                 </div>
 
                 <div class="flex flex-wrap items-center gap-3">
@@ -110,7 +119,6 @@
         let currentFilter = 'all'; 
         let previousDeviceStates = {};
 
-        // دالة التنبيه الصوتي
         function playAlertSound(isOnline) {
             try {
                 const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -238,7 +246,7 @@
             currentFilter = filterType;
             ['all', 'images', 'videos'].forEach(type => {
                 const btn = document.getElementById(`filter-${type}`);
-                btn.className = type === filterType ? "px-3 py-1 rounded bg-cyan-600 text-white transition font-medium" : "px-3 py-1 rounded text-slate-300 hover:bg-slate-800 transition";
+                btn.className = type === filterType ? "px-2.5 py-1 rounded bg-cyan-600 text-white transition font-medium" : "px-2.5 py-1 rounded text-slate-300 hover:bg-slate-800 transition";
             });
             renderTable();
         }
@@ -262,12 +270,28 @@
                 return;
             }
 
-            filteredFiles.sort((a, b) => (b.is_directory === a.is_directory) ? 0 : b.is_directory ? 1 : -1);
+            // تطبيق الترتيب (حسب اختيار المستخدم: جديد/قديم أو مجلدات أولاً)
+            const sortOrder = document.getElementById('sortOrderSelector').value;
+            filteredFiles.sort((a, b) => {
+                // المجلدات دائماً في الأعلى
+                if (a.is_directory && !b.is_directory) return -1;
+                if (!a.is_directory && b.is_directory) return 1;
+
+                // الترتيب بناءً على الاسم أو المعيار
+                if (sortOrder === 'newest') {
+                    return b.file_name.localeCompare(a.file_name, 'en', { numeric: true });
+                } else {
+                    return a.file_name.localeCompare(b.file_name, 'en', { numeric: true });
+                }
+            });
 
             filteredFiles.forEach((item, index) => {
                 const row = document.createElement('tr');
-                row.className = "hover:bg-slate-750 transition cursor-pointer";
-                if (item.is_directory) row.onclick = () => fetchDirectory(item.file_path);
+                row.className = "hover:bg-slate-750 transition"; // إزالة تأثير الوميض المؤذي للماوس
+                if (item.is_directory) {
+                    row.className += " cursor-pointer";
+                    row.onclick = () => fetchDirectory(item.file_path);
+                }
 
                 let actionButtonHtml = '';
                 if (item.is_directory) {
@@ -362,7 +386,7 @@
             if (!fileName) return alert("البيانات ناقصة.");
             
             await supabaseClient.from('device_commands').insert([
-                { device_id: activeDeviceId, action: 'upload', file_name: fileName, file_path: currentPath }
+                { device_id: activeCommands = activeDeviceId, action: 'upload', file_name: fileName, file_path: currentPath }
             ]);
             alert("✅ تم إرسال أمر الرفع.");
         }
@@ -375,13 +399,20 @@
             alert(`تم طلب الرفع للسحابة.`);
         }
 
-        // تفعيل الاستماع الفوري للتحديثات (Realtime) لتغيير حالات الرفع تلقائياً
+        // الاستماع الفوري لتحديثات الحالات بدون تحديث كامل مزعج
         function setupRealtimeSubscription() {
             supabaseClient
                 .channel('public:device_files_cache')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'device_files_cache' }, payload => {
                     if (activeDeviceId && payload.new && payload.new.device_id === activeDeviceId) {
-                        loadFilesFromCache();
+                        // تحديث الصنف المحلي مباشرة بدلاً من إعادة جلب المجلد كاملاً لمنع الوميض
+                        const updatedItem = payload.new;
+                        const existing = rawFilesData.find(f => f.file_name === updatedItem.file_name);
+                        if (existing) {
+                            existing.upload_status = updatedItem.upload_status;
+                            existing.cloud_url = updatedItem.cloud_url;
+                            renderTable(); // إعادة رسم الجدول بهدوء بالبيانات المحدثة
+                        }
                     }
                 })
                 .subscribe();
